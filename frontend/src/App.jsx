@@ -1,87 +1,228 @@
 import React from 'react'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import Layout from './components/Layout'
+import Create from './routes/Create'
+import ScriptEditor from './routes/ScriptEditor'
+import LiveMode from './routes/LiveMode'
+import Export from './routes/Export'
 
-export default function App() {
+function Home() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-            <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8 space-y-6">
-                {/* Header */}
-                <div className="text-center space-y-2">
-                    <h1 className="text-4xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                        Tailwind CSS v3 is Working! 🎉
-                    </h1>
-                    <p className="text-lg text-gray-600">
-                        Your Vite + React + Tailwind setup is ready to go
-                    </p>
+        <div className="max-w-4xl mx-auto">
+            {/* Hero Section */}
+            <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                    AI-Powered Interview Support
+                </h2>
+                <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                    Generate structured interview scripts and conduct interviews with live
+                    tracking, time management, and AI-powered follow-up suggestions.
+                </p>
+            </div>
+
+            {/* Main CTA */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-8 mb-12">
+                <div className="text-center">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                        Ready to create your interview script?
+                    </h3>
+                    <Link
+                        to="/create"
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    >
+                        <svg
+                            className="w-5 h-5 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 4v16m8-8H4"
+                            />
+                        </svg>
+                        Create New Script
+                    </Link>
+                </div>
+            </div>
+
+            {/* Feature Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-blue-100 text-blue-600">
+                                <svg
+                                    className="h-6 w-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="ml-4">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                                Generate Scripts
+                            </h4>
+                            <p className="mt-2 text-gray-600">
+                                Create structured interview scripts (intro, warm-up, main,
+                                closing) based on your research goals and target audience.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Feature Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 transform hover:scale-105 transition-transform duration-200 shadow-lg">
-                        <div className="flex items-center space-x-3">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                            <h3 className="text-xl font-semibold">Vite</h3>
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-indigo-100 text-indigo-600">
+                                <svg
+                                    className="h-6 w-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                </svg>
+                            </div>
                         </div>
-                        <p className="mt-2 text-blue-100">Lightning fast HMR and build tool</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white rounded-xl p-6 transform hover:scale-105 transition-transform duration-200 shadow-lg">
-                        <div className="flex items-center space-x-3">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <h3 className="text-xl font-semibold">React</h3>
+                        <div className="ml-4">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                                Edit & Refine
+                            </h4>
+                            <p className="mt-2 text-gray-600">
+                                Customize your script by editing, adding, deleting, or
+                                reordering questions to match your research needs.
+                            </p>
                         </div>
-                        <p className="mt-2 text-cyan-100">Component-based UI library</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl p-6 transform hover:scale-105 transition-transform duration-200 shadow-lg">
-                        <div className="flex items-center space-x-3">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                            </svg>
-                            <h3 className="text-xl font-semibold">Tailwind CSS</h3>
-                        </div>
-                        <p className="mt-2 text-indigo-100">Utility-first CSS framework</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 transform hover:scale-105 transition-transform duration-200 shadow-lg">
-                        <div className="flex items-center space-x-3">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 className="text-xl font-semibold">PostCSS</h3>
-                        </div>
-                        <p className="mt-2 text-purple-100">Modern CSS processing</p>
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                    <button className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                        Start Building
-                    </button>
-                    <button className="flex-1 bg-white text-indigo-600 font-semibold py-3 px-6 rounded-lg border-2 border-indigo-600 hover:bg-indigo-50 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                        View Docs
-                    </button>
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-cyan-100 text-cyan-600">
+                                <svg
+                                    className="h-6 w-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="ml-4">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                                Live Interview Mode
+                            </h4>
+                            <p className="mt-2 text-gray-600">
+                                Track questions, monitor time, and get AI-powered follow-up
+                                suggestions during your interview.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Footer Info */}
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                    <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                            ✓ Tailwind v3 Active
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-                            ✓ React Installed
-                        </span>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
-                            ✓ Vite Configured
-                        </span>
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-purple-100 text-purple-600">
+                                <svg
+                                    className="h-6 w-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="ml-4">
+                            <h4 className="text-lg font-semibold text-gray-900">
+                                Export & Share
+                            </h4>
+                            <p className="mt-2 text-gray-600">
+                                Download your scripts and notes in multiple formats: TEXT, JSON,
+                                or PDF.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Quick Links for Demo */}
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Quick Navigation (Demo)
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                    <Link
+                        to="/create"
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        Create Script
+                    </Link>
+                    <Link
+                        to="/script/demo-123"
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        Script Editor (demo-123)
+                    </Link>
+                    <Link
+                        to="/live/demo-123"
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        Live Mode (demo-123)
+                    </Link>
+                    <Link
+                        to="/export/demo-123"
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        Export (demo-123)
+                    </Link>
+                </div>
+            </div>
         </div>
+    )
+}
+
+export default function App() {
+    return (
+        <BrowserRouter>
+            <Layout>
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/create" element={<Create />} />
+                    <Route path="/script/:scriptId" element={<ScriptEditor />} />
+                    <Route path="/live/:scriptId" element={<LiveMode />} />
+                    <Route path="/export/:scriptId" element={<Export />} />
+                </Routes>
+            </Layout>
+        </BrowserRouter>
     )
 }
