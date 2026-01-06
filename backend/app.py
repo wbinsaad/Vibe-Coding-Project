@@ -56,6 +56,7 @@ def api_root():
         'endpoints': {
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
+            'get_script': 'GET /api/scripts/<script_id>',
             'scripts': '/api/scripts (coming soon)',
         }
     }), 200
@@ -254,6 +255,62 @@ def _generate_dummy_questions(script_id, research_goal, target_users):
         order_index += 1
     
     return questions
+
+
+@app.route('/api/scripts/<int:script_id>', methods=['GET'])
+def get_script(script_id):
+    """
+    Retrieve a script by ID with all questions, flags, and notes
+    
+    GET /api/scripts/<script_id>
+    
+    Returns:
+        200: Script found with all related data
+        404: Script not found
+    """
+    from models.db import db
+    from models.script import Script, Question
+    from models.flag import Flag
+    from models.note import Note
+    
+    # Query script by ID
+    script = Script.query.filter_by(id=script_id).first()
+    
+    if not script:
+        return jsonify({
+            'status': 'error',
+            'error': 'Script not found'
+        }), 404
+    
+    # Get all questions for this script, ordered by order_index
+    questions = Question.query.filter_by(script_id=script_id)\
+        .order_by(Question.order_index)\
+        .all()
+    
+    # Build questions list with flags and notes
+    questions_data = []
+    for question in questions:
+        # Get flags for this question
+        flags = Flag.query.filter_by(question_id=question.id).all()
+        
+        # Get notes for this question
+        notes = Note.query.filter_by(question_id=question.id).all()
+        
+        # Build question dict with nested data
+        question_dict = question.to_dict()
+        question_dict['flags'] = [flag.to_dict() for flag in flags]
+        question_dict['notes'] = [note.to_dict() for note in notes]
+        
+        questions_data.append(question_dict)
+    
+    # Build response
+    response_data = {
+        'status': 'success',
+        'script': script.to_dict(),
+        'questions': questions_data
+    }
+    
+    return jsonify(response_data), 200
 
 
 # ============================================

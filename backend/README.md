@@ -149,6 +149,62 @@ curl -X POST http://localhost:5000/api/scripts/generate \
   }'
 ```
 
+### Get Script by ID
+
+Retrieve a specific script with all questions, flags, and notes:
+
+```bash
+curl -X GET http://localhost:5000/api/scripts/1
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "status": "success",
+  "script": {
+    "id": 1,
+    "title": "Interview: Mobile banking app users aged 25-45",
+    "research_goal": "Understand user pain points with mobile banking",
+    "target_users": "Mobile banking app users aged 25-45",
+    "duration_minutes": 30,
+    "interview_type": "semi-structured",
+    "status": "draft",
+    "user_id": null,
+    "created_at": "2026-01-06T19:00:00.000000",
+    "updated_at": "2026-01-06T19:00:00.000000",
+    "questions": [...]
+  },
+  "questions": [
+    {
+      "id": 1,
+      "text": "Thank you for joining...",
+      "section": "intro",
+      "order_index": 0,
+      "notes": null,
+      "is_asked": false,
+      "script_id": 1,
+      "created_at": "2026-01-06T19:00:00.000000",
+      "updated_at": "2026-01-06T19:00:00.000000",
+      "flags": [],
+      "notes": []
+    }
+  ]
+}
+```
+
+**Script Not Found (404):**
+```bash
+curl -X GET http://localhost:5000/api/scripts/999
+```
+
+**Response:**
+```json
+{
+  "status": "error",
+  "error": "Script not found"
+}
+```
+
 ## Database Management
 
 ### Initialize Database
