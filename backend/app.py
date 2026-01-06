@@ -57,6 +57,7 @@ def api_root():
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
+            'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
             'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
             'delete_question': 'DELETE /api/questions/<question_id>',
@@ -519,6 +520,100 @@ def delete_question(question_id):
         return jsonify({
             'status': 'error',
             'message': f'Failed to delete question: {str(e)}'
+        }), 500
+
+
+@app.route('/api/scripts/<int:script_id>/reorder', methods=['POST'])
+def reorder_questions(script_id):
+    """
+    Reorder questions for a script
+    
+    POST /api/scripts/<script_id>/reorder
+    Body:
+    {
+        "question_order": [
+            {"question_id": 1, "order_index": 0},
+            {"question_id": 2, "order_index": 1},
+            ...
+        ]
+    }
+    
+    Returns:
+        200: Questions reordered successfully
+        400: Validation error
+        404: Script not found
+    """
+    from models.db import db
+    from models.script import Script, Question
+    
+    # Get JSON data
+    data = request.get_json()
+    
+    if not data or 'question_order' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Request body must contain question_order array'
+        }), 400
+    
+    # Validate script exists
+    script = Script.query.filter_by(id=script_id).first()
+    if not script:
+        return jsonify({
+            'status': 'error',
+            'error': 'Script not found'
+        }), 404
+    
+    question_order = data['question_order']
+    
+    if not isinstance(question_order, list):
+        return jsonify({
+            'status': 'error',
+            'message': 'question_order must be an array'
+        }), 400
+    
+    try:
+        # Get all question IDs being reordered
+        question_ids = [item['question_id'] for item in question_order if 'question_id' in item]
+        
+        # Validate all questions belong to this script
+        questions = Question.query.filter(Question.id.in_(question_ids)).all()
+        
+        if len(questions) != len(question_ids):
+            return jsonify({
+                'status': 'error',
+                'message': 'One or more questions not found'
+            }), 400
+        
+        # Validate all questions belong to this script
+        for question in questions:
+            if question.script_id != script_id:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Question {question.id} does not belong to script {script_id}'
+                }), 400
+        
+        # Update order_index for each question
+        for item in question_order:
+            if 'question_id' not in item or 'order_index' not in item:
+                continue
+                
+            question = next((q for q in questions if q.id == item['question_id']), None)
+            if question:
+                question.order_index = item['order_index']
+        
+        # Commit all changes in one transaction
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Questions reordered successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to reorder questions: {str(e)}'
         }), 500
 
 

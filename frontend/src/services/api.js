@@ -119,6 +119,31 @@ export async function deleteQuestion(questionId) {
 }
 
 /**
+ * Reorder questions in a script
+ * @param {number|string} scriptId - Script ID
+ * @param {Object} payload - Reorder payload
+ * @param {Array} payload.question_order - Array of {question_id, order_index}
+ * @returns {Promise<Object>} Reorder confirmation
+ */
+export async function reorderQuestions(scriptId, payload) {
+    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/reorder`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to reorder questions');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */

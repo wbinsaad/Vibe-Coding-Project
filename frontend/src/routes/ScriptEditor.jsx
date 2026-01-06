@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript, updateQuestion, createQuestion, deleteQuestion } from '../services/api'
+import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions } from '../services/api'
 
 export default function ScriptEditor() {
     const { scriptId } = useParams()
@@ -154,6 +154,90 @@ export default function ScriptEditor() {
             )
         } catch (err) {
             alert(`Failed to delete question: ${err.message}`)
+        }
+    }
+
+    // Move question up within its section
+    const handleMoveUp = async (question, sectionQuestions, sectionIndex) => {
+        if (sectionIndex === 0) return // Already at top
+
+        // Get the question above
+        const aboveQuestion = sectionQuestions[sectionIndex - 1]
+
+        // Create new questions array with swapped positions
+        const updatedQuestions = questions.map(q => {
+            if (q.id === question.id) {
+                return { ...q, order_index: aboveQuestion.order_index }
+            } else if (q.id === aboveQuestion.id) {
+                return { ...q, order_index: question.order_index }
+            }
+            return q
+        })
+
+        // Sort by order_index and reassign sequential order_index (0..N-1)
+        const sortedQuestions = [...updatedQuestions].sort((a, b) => a.order_index - b.order_index)
+        sortedQuestions.forEach((q, idx) => {
+            q.order_index = idx
+        })
+
+        // Update local state immediately
+        setQuestions(sortedQuestions)
+
+        // Call API to persist
+        try {
+            await reorderQuestions(scriptId, {
+                question_order: sortedQuestions.map(q => ({
+                    question_id: q.id,
+                    order_index: q.order_index
+                }))
+            })
+        } catch (err) {
+            alert(`Failed to reorder: ${err.message}`)
+            // Revert on error by refetching
+            const data = await getScript(scriptId)
+            setQuestions(data.questions)
+        }
+    }
+
+    // Move question down within its section
+    const handleMoveDown = async (question, sectionQuestions, sectionIndex) => {
+        if (sectionIndex === sectionQuestions.length - 1) return // Already at bottom
+
+        // Get the question below
+        const belowQuestion = sectionQuestions[sectionIndex + 1]
+
+        // Create new questions array with swapped positions
+        const updatedQuestions = questions.map(q => {
+            if (q.id === question.id) {
+                return { ...q, order_index: belowQuestion.order_index }
+            } else if (q.id === belowQuestion.id) {
+                return { ...q, order_index: question.order_index }
+            }
+            return q
+        })
+
+        // Sort by order_index and reassign sequential order_index (0..N-1)
+        const sortedQuestions = [...updatedQuestions].sort((a, b) => a.order_index - b.order_index)
+        sortedQuestions.forEach((q, idx) => {
+            q.order_index = idx
+        })
+
+        // Update local state immediately
+        setQuestions(sortedQuestions)
+
+        // Call API to persist
+        try {
+            await reorderQuestions(scriptId, {
+                question_order: sortedQuestions.map(q => ({
+                    question_id: q.id,
+                    order_index: q.order_index
+                }))
+            })
+        } catch (err) {
+            alert(`Failed to reorder: ${err.message}`)
+            // Revert on error by refetching
+            const data = await getScript(scriptId)
+            setQuestions(data.questions)
         }
     }
 
@@ -317,11 +401,43 @@ export default function ScriptEditor() {
                                 {sectionQuestions.map((question, index) => {
                                     const isEditing = editingQuestionId === question.id
                                     const isSaving = savingQuestionId === question.id
+                                    const isFirst = index === 0
+                                    const isLast = index === sectionQuestions.length - 1
 
                                     return (
                                         <div key={question.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                            <div className="flex items-start">
-                                                <span className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-gray-700 font-medium text-sm mr-4">
+                                            <div className="flex items-start gap-4">
+                                                {/* Up/Down buttons */}
+                                                <div className="flex-shrink-0 flex flex-col gap-1">
+                                                    <button
+                                                        onClick={() => handleMoveUp(question, sectionQuestions, index)}
+                                                        disabled={isFirst}
+                                                        className={`p-1 rounded ${isFirst
+                                                                ? 'text-gray-300 cursor-not-allowed'
+                                                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                                            }`}
+                                                        title="Move up"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleMoveDown(question, sectionQuestions, index)}
+                                                        disabled={isLast}
+                                                        className={`p-1 rounded ${isLast
+                                                                ? 'text-gray-300 cursor-not-allowed'
+                                                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                                            }`}
+                                                        title="Move down"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                <span className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-gray-700 font-medium text-sm">
                                                     {index + 1}
                                                 </span>
                                                 <div className="flex-1">
