@@ -64,6 +64,90 @@ The API will be available at `http://localhost:5000`
 
 - `GET /api/health` - Health check endpoint
 - `GET /api/` - API root with endpoint list
+- `POST /api/scripts/generate` - Generate interview script with questions
+
+## API Testing
+
+### Generate Interview Script
+
+Create a new interview script with generated questions:
+
+```bash
+curl -X POST http://localhost:5000/api/scripts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "research_goal": "Understand user pain points with mobile banking",
+    "target_users": "Mobile banking app users aged 25-45",
+    "duration_minutes": 30,
+    "interview_type": "semi-structured"
+  }'
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "status": "success",
+  "message": "Script generated successfully",
+  "script_id": 1,
+  "script": {
+    "id": 1,
+    "title": "Interview: Mobile banking app users aged 25-45",
+    "research_goal": "Understand user pain points with mobile banking",
+    "target_users": "Mobile banking app users aged 25-45",
+    "duration_minutes": 30,
+    "interview_type": "semi-structured",
+    "status": "draft",
+    "created_at": "2026-01-06T19:00:00",
+    "questions": [...]
+  },
+  "questions": [
+    {
+      "id": 1,
+      "section": "intro",
+      "order_index": 0,
+      "text": "Thank you for joining...",
+      "is_asked": false
+    },
+    ...
+  ]
+}
+```
+
+### Test Validation Errors
+
+**Missing required field:**
+```bash
+curl -X POST http://localhost:5000/api/scripts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "research_goal": "Test research",
+    "target_users": "Test users"
+  }'
+```
+
+**Invalid interview_type:**
+```bash
+curl -X POST http://localhost:5000/api/scripts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "research_goal": "Test research",
+    "target_users": "Test users",
+    "duration_minutes": 30,
+    "interview_type": "invalid-type"
+  }'
+```
+
+**Invalid duration:**
+```bash
+curl -X POST http://localhost:5000/api/scripts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "research_goal": "Test research",
+    "target_users": "Test users",
+    "duration_minutes": "not-a-number",
+    "interview_type": "structured"
+  }'
+```
 
 ## Database Management
 
