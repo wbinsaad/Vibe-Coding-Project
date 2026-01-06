@@ -57,7 +57,9 @@ def api_root():
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
+            'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
+            'delete_question': 'DELETE /api/questions/<question_id>',
             'scripts': '/api/scripts (coming soon)',
         }
     }), 200
@@ -376,6 +378,147 @@ def update_question(question_id):
         return jsonify({
             'status': 'error',
             'message': f'Failed to update question: {str(e)}'
+        }), 500
+
+
+@app.route('/api/questions', methods=['POST'])
+def create_question():
+    """
+    Create a new question for a script
+    
+    POST /api/questions
+    Body:
+    {
+        "script_id": number,
+        "section": "intro"|"warmup"|"main"|"closing",
+        "text": "question text",
+        "order_index": number (optional)
+    }
+    
+    Returns:
+        201: Question created successfully
+        400: Validation error
+        404: Script not found
+    """
+    from models.db import db
+    from models.script import Script, Question
+    
+    # Get JSON data
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Request body must be JSON'
+        }), 400
+    
+    # Validate required fields
+    required_fields = ['script_id', 'section', 'text']
+    missing_fields = []
+    
+    for field in required_fields:
+        if field not in data or (isinstance(data[field], str) and not data[field].strip()):
+            missing_fields.append(field)
+    
+    if missing_fields:
+        return jsonify({
+            'status': 'error',
+            'message': 'Missing required fields',
+            'missing_fields': missing_fields
+        }), 400
+    
+    # Validate section
+    valid_sections = ['intro', 'warmup', 'main', 'closing']
+    if data['section'] not in valid_sections:
+        return jsonify({
+            'status': 'error',
+            'message': f'Invalid section. Must be one of: {", ".join(valid_sections)}',
+            'provided': data['section']
+        }), 400
+    
+    # Validate script exists
+    script = Script.query.filter_by(id=data['script_id']).first()
+    if not script:
+        return jsonify({
+            'status': 'error',
+            'error': 'Script not found'
+        }), 404
+    
+    try:
+        # Calculate order_index if not provided
+        if 'order_index' in data and data['order_index'] is not None:
+            order_index = int(data['order_index'])
+        else:
+            # Get max order_index for this script
+            max_order = db.session.query(db.func.max(Question.order_index))\
+                .filter_by(script_id=data['script_id'])\
+                .scalar()
+            order_index = (max_order + 1) if max_order is not None else 0
+        
+        # Create question
+        question = Question(
+            script_id=data['script_id'],
+            section=data['section'],
+            text=data['text'].strip(),
+            order_index=order_index,
+            is_asked=False
+        )
+        
+        db.session.add(question)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Question created successfully',
+            'question': question.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create question: {str(e)}'
+        }), 500
+
+
+@app.route('/api/questions/<int:question_id>', methods=['DELETE'])
+def delete_question(question_id):
+    """
+    Delete a question by ID
+    
+    DELETE /api/questions/<question_id>
+    
+    Returns:
+        200: Question deleted successfully
+        404: Question not found
+    """
+    from models.db import db
+    from models.script import Question
+    
+    # Find question by ID
+    question = Question.query.filter_by(id=question_id).first()
+    
+    if not question:
+        return jsonify({
+            'status': 'error',
+            'error': 'Question not found'
+        }), 404
+    
+    try:
+        # Delete question (flags and notes will cascade delete)
+        db.session.delete(question)
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Question deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to delete question: {str(e)}'
         }), 500
 
 

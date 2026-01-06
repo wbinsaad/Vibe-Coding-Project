@@ -66,7 +66,9 @@ The API will be available at `http://localhost:5000`
 - `GET /api/` - API root with endpoint list
 - `POST /api/scripts/generate` - Generate interview script with questions
 - `GET /api/scripts/<script_id>` - Get script by ID with questions
+- `POST /api/questions` - Create new question
 - `PATCH /api/questions/<question_id>` - Update question text
+- `DELETE /api/questions/<question_id>` - Delete question
 
 ## API Testing
 
@@ -263,6 +265,121 @@ curl -X PATCH http://localhost:5000/api/questions/999 \
 ```
 
 **Response (404):**
+```json
+{
+  "status": "error",
+  "error": "Question not found"
+}
+```
+
+### Create New Question
+
+Add a new question to a script:
+
+```bash
+curl -X POST http://localhost:5000/api/questions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "section": "main",
+    "text": "What features would you like to see improved?"
+  }'
+```
+
+**With explicit order_index:**
+```bash
+curl -X POST http://localhost:5000/api/questions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "section": "main",
+    "text": "Can you describe your workflow?",
+    "order_index": 5
+  }'
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "status": "success",
+  "message": "Question created successfully",
+  "question": {
+    "id": 12,
+    "text": "What features would you like to see improved?",
+    "section": "main",
+    "order_index": 11,
+    "notes": null,
+    "is_asked": false,
+    "script_id": 1,
+    "created_at": "2026-01-06T23:00:00.000000",
+    "updated_at": "2026-01-06T23:00:00.000000"
+  }
+}
+```
+
+**Validation Errors:**
+
+*Missing required field:*
+```bash
+curl -X POST http://localhost:5000/api/questions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "section": "main"
+  }'
+```
+
+**Response (400):**
+```json
+{
+  "status": "error",
+  "message": "Missing required fields",
+  "missing_fields": ["text"]
+}
+```
+
+*Invalid section:*
+```bash
+curl -X POST http://localhost:5000/api/questions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "section": "invalid-section",
+    "text": "Question text"
+  }'
+```
+
+**Response (400):**
+```json
+{
+  "status": "error",
+  "message": "Invalid section. Must be one of: intro, warmup, main, closing",
+  "provided": "invalid-section"
+}
+```
+
+### Delete Question
+
+Delete a question by ID (also deletes associated flags and notes):
+
+```bash
+curl -X DELETE http://localhost:5000/api/questions/12
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Question deleted successfully"
+}
+```
+
+**Question not found (404):**
+```bash
+curl -X DELETE http://localhost:5000/api/questions/999
+```
+
+**Response:**
 ```json
 {
   "status": "error",
