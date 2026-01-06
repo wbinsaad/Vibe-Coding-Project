@@ -73,6 +73,52 @@ export async function updateQuestion(questionId, payload) {
 }
 
 /**
+ * Create a new question
+ * @param {Object} payload - Question data
+ * @param {number} payload.script_id - Script ID
+ * @param {string} payload.section - Section (intro, warmup, main, closing)
+ * @param {string} payload.text - Question text
+ * @param {number} [payload.order_index] - Optional order index
+ * @returns {Promise<Object>} Created question
+ */
+export async function createQuestion(payload) {
+    const response = await fetch(`${API_BASE_URL}/api/questions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to create question');
+    }
+
+    return data;
+}
+
+/**
+ * Delete a question
+ * @param {number|string} questionId - Question ID
+ * @returns {Promise<Object>} Delete confirmation
+ */
+export async function deleteQuestion(questionId) {
+    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+        method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to delete question');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */
