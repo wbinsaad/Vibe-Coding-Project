@@ -23,7 +23,7 @@ def init_app(app):
     
     with app.app_context():
         # Import all models here so they are registered with SQLAlchemy
-        from models import script, user  # Import model files when created
+        from models import script, user, flag, note
         
         print("✓ Database initialized successfully")
 
@@ -37,7 +37,7 @@ def init_db():
     
     with app.app_context():
         # Import all models
-        from models import script, user  # Import model files when created
+        from models import script, user, flag, note
         
         # Create all tables
         db.create_all()
@@ -49,6 +49,8 @@ def init_db():
         print("  - users")
         print("  - scripts")
         print("  - questions")
+        print("  - flags")
+        print("  - notes")
         print("="*50 + "\n")
 
 

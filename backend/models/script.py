@@ -57,7 +57,7 @@ class Question(db.Model):
     text = db.Column(db.Text, nullable=False)
     section = db.Column(db.String(50), nullable=False)  # intro, warm-up, main, closing
     order_index = db.Column(db.Integer, nullable=False)
-    notes = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)  # Legacy notes field (deprecated, use Note model)
     is_asked = db.Column(db.Boolean, default=False)
     
     # Foreign key
@@ -67,12 +67,16 @@ class Question(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationships to flags and notes
+    flags = db.relationship('Flag', backref='question', lazy=True, cascade='all, delete-orphan')
+    question_notes = db.relationship('Note', backref='question', lazy=True, cascade='all, delete-orphan')
+    
     def __repr__(self):
         return f'<Question {self.section} - {self.order_index}>'
     
-    def to_dict(self):
+    def to_dict(self, include_flags=False, include_notes=False):
         """Convert question to dictionary for JSON serialization"""
-        return {
+        result = {
             'id': self.id,
             'text': self.text,
             'section': self.section,
@@ -83,3 +87,11 @@ class Question(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+        
+        # Optionally include flags and notes
+        if include_flags:
+            result['flags'] = [f.to_dict() for f in self.flags]
+        if include_notes:
+            result['question_notes'] = [n.to_dict() for n in self.question_notes]
+        
+        return result
