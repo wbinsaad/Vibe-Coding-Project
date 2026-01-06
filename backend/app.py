@@ -58,6 +58,7 @@ def api_root():
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
             'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
+            'run_checks': 'POST /api/scripts/<script_id>/checks',
             'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
             'delete_question': 'DELETE /api/questions/<question_id>',
@@ -614,6 +615,167 @@ def reorder_questions(script_id):
         return jsonify({
             'status': 'error',
             'message': f'Failed to reorder questions: {str(e)}'
+        }), 500
+
+
+@app.route('/api/scripts/<int:script_id>/checks', methods=['POST'])
+def run_quality_checks(script_id):
+    """
+    Run quality checks on all questions in a script
+    
+    POST /api/scripts/<script_id>/checks
+    
+    Returns:
+        200: Checks completed with flags
+        404: Script not found
+    """
+    from models.db import db
+    from models.script import Script, Question
+    from models.flag import Flag
+    import re
+    
+    # Validate script exists
+    script = Script.query.filter_by(id=script_id).first()
+    if not script:
+        return jsonify({
+            'status': 'error',
+            'error': 'Script not found'
+        }), 404
+    
+    # Load all questions for this script, ordered by order_index
+    questions = Question.query.filter_by(script_id=script_id)\
+        .order_by(Question.order_index)\
+        .all()
+    
+    # Bias detection patterns
+    BIAS_LEADING_TERMS = [
+        "don't you think", "wouldn't you", "obviously", "clearly",
+        "isn't it true", "shouldn't", "right?"
+    ]
+    
+    BIAS_ASSUMPTIVE_PHRASES = [
+        "you must", "you always", "you never"
+    ]
+    
+    try:
+        # Delete existing flags for all questions in this script
+        question_ids = [q.id for q in questions]
+        if question_ids:
+            Flag.query.filter(Flag.question_id.in_(question_ids)).delete(synchronize_session=False)
+        
+        new_flags = []
+        flag_counts = {'bias': 0, 'alignment': 0}
+        
+        # Tokenize research goal for alignment checks
+        research_goal_lower = script.research_goal.lower()
+        research_goal_tokens = set([
+            word for word in re.findall(r'\b\w+\b', research_goal_lower)
+            if len(word) > 3
+        ])
+        
+        # Check each question
+        for question in questions:
+            question_text_lower = question.text.lower()
+            
+            # --- Bias Check ---
+            bias_found = False
+            bias_phrase = None
+            
+            # Check for leading terms
+            for term in BIAS_LEADING_TERMS:
+                if term in question_text_lower:
+                    bias_found = True
+                    bias_phrase = term
+                    break
+            
+            # Check for assumptive phrases
+            if not bias_found:
+                for phrase in BIAS_ASSUMPTIVE_PHRASES:
+                    if phrase in question_text_lower:
+                        bias_found = True
+                        bias_phrase = phrase
+                        break
+            
+            if bias_found:
+                # Create bias flag
+                # Generate rewrite: remove biased phrase and neutralize
+                rewrite = question.text
+                if bias_phrase:
+                    # Simple rewrite: remove the phrase and make neutral
+                    rewrite = re.sub(
+                        re.escape(bias_phrase),
+                        "",
+                        question.text,
+                        flags=re.IGNORECASE
+                    ).strip()
+                    # Clean up extra spaces
+                    rewrite = re.sub(r'\s+', ' ', rewrite)
+                    # If it starts with lowercase after removal, capitalize
+                    if rewrite and rewrite[0].islower():
+                        rewrite = rewrite[0].upper() + rewrite[1:]
+                    # If no question mark, add one
+                    if not rewrite.endswith('?'):
+                        rewrite += '?'
+                
+                flag = Flag(
+                    question_id=question.id,
+                    type='bias',
+                    severity='high',
+                    explanation=f'Contains leading/assumptive phrase: "{bias_phrase}"',
+                    suggestion_rewrite=rewrite or 'Rephrase to be more neutral and open-ended'
+                )
+                db.session.add(flag)
+                new_flags.append(flag)
+                flag_counts['bias'] += 1
+            
+            # --- Alignment Check ---
+            question_tokens = set([
+                word for word in re.findall(r'\b\w+\b', question_text_lower)
+                if len(word) > 3
+            ])
+            
+            # Calculate overlap ratio
+            if research_goal_tokens and question_tokens:
+                overlap = research_goal_tokens.intersection(question_tokens)
+                overlap_ratio = len(overlap) / len(research_goal_tokens)
+            else:
+                overlap_ratio = 0.0
+            
+            if overlap_ratio < 0.10:
+                # Create alignment flag
+                # Simple rewrite: add reference to research goal
+                goal_sample = ' '.join(list(research_goal_tokens)[:3])
+                rewrite = f"{question.text.rstrip('?')} regarding {goal_sample}?"
+                
+                flag = Flag(
+                    question_id=question.id,
+                    type='alignment',
+                    severity='medium',
+                    explanation=f'Low alignment with research goal (overlap: {overlap_ratio:.0%})',
+                    suggestion_rewrite=rewrite
+                )
+                db.session.add(flag)
+                new_flags.append(flag)
+                flag_counts['alignment'] += 1
+        
+        # Commit all flags
+        db.session.commit()
+        
+        # Format response
+        flags_data = [flag.to_dict() for flag in new_flags]
+        
+        return jsonify({
+            'status': 'success',
+            'script_id': script_id,
+            'flags': flags_data,
+            'flag_counts': flag_counts
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to run quality checks: {str(e)}'
         }), 500
 
 

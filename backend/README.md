@@ -67,6 +67,7 @@ The API will be available at `http://localhost:5000`
 - `POST /api/scripts/generate` - Generate interview script with questions
 - `GET /api/scripts/<script_id>` - Get script by ID with questions
 - `POST /api/scripts/<script_id>/reorder` - Reorder questions in script
+- `POST /api/scripts/<script_id>/checks` - Run quality checks on questions
 - `POST /api/questions` - Create new question
 - `PATCH /api/questions/<question_id>` - Update question text
 - `DELETE /api/questions/<question_id>` - Delete question
