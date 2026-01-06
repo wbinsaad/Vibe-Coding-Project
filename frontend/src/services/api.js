@@ -48,6 +48,31 @@ export async function getScript(scriptId) {
 }
 
 /**
+ * Update a question's text
+ * @param {number|string} questionId - Question ID
+ * @param {Object} payload - Update payload
+ * @param {string} payload.text - New question text
+ * @returns {Promise<Object>} Updated question
+ */
+export async function updateQuestion(questionId, payload) {
+    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to update question');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */

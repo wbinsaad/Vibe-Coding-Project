@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript } from '../services/api'
+import { getScript, updateQuestion } from '../services/api'
 
 export default function ScriptEditor() {
     const { scriptId } = useParams()
@@ -10,6 +10,12 @@ export default function ScriptEditor() {
     const [questions, setQuestions] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+
+    // Editing state
+    const [editingQuestionId, setEditingQuestionId] = useState(null)
+    const [editText, setEditText] = useState('')
+    const [savingQuestionId, setSavingQuestionId] = useState(null)
+    const [editError, setEditError] = useState('')
 
     // Fetch script on mount
     useEffect(() => {
@@ -28,6 +34,54 @@ export default function ScriptEditor() {
 
         fetchScript()
     }, [scriptId])
+
+    // Start editing a question
+    const handleEdit = (question) => {
+        setEditingQuestionId(question.id)
+        setEditText(question.text)
+        setEditError('')
+    }
+
+    // Cancel editing
+    const handleCancel = () => {
+        setEditingQuestionId(null)
+        setEditText('')
+        setEditError('')
+    }
+
+    // Save edited question
+    const handleSave = async (questionId) => {
+        // Validate
+        if (!editText.trim()) {
+            setEditError('Question text cannot be empty')
+            return
+        }
+
+        setSavingQuestionId(questionId)
+        setEditError('')
+
+        try {
+            // Call API
+            const result = await updateQuestion(questionId, {
+                text: editText.trim()
+            })
+
+            // Update local state with updated question
+            setQuestions(prevQuestions =>
+                prevQuestions.map(q =>
+                    q.id === questionId ? { ...q, ...result.question } : q
+                )
+            )
+
+            // Exit edit mode
+            setEditingQuestionId(null)
+            setEditText('')
+        } catch (err) {
+            setEditError(err.message || 'Failed to save question')
+        } finally {
+            setSavingQuestionId(null)
+        }
+    }
 
     // Group questions by section
     const questionsBySection = {
@@ -187,40 +241,106 @@ export default function ScriptEditor() {
                             </div>
 
                             <div className="divide-y divide-gray-200">
-                                {sectionQuestions.map((question, index) => (
-                                    <div key={question.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-start">
-                                            <span className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-gray-700 font-medium text-sm mr-4">
-                                                {index + 1}
-                                            </span>
-                                            <div className="flex-1">
-                                                <p className="text-gray-900">{question.text}</p>
+                                {sectionQuestions.map((question, index) => {
+                                    const isEditing = editingQuestionId === question.id
+                                    const isSaving = savingQuestionId === question.id
 
-                                                {/* Show flags if any */}
-                                                {question.flags && question.flags.length > 0 && (
-                                                    <div className="mt-2 space-y-1">
-                                                        {question.flags.map((flag, idx) => (
-                                                            <div key={idx} className="text-sm text-orange-700 bg-orange-50 rounded px-2 py-1 inline-block mr-2">
-                                                                ⚠️ {flag.type}: {flag.explanation}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                    return (
+                                        <div key={question.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-start">
+                                                <span className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-200 text-gray-700 font-medium text-sm mr-4">
+                                                    {index + 1}
+                                                </span>
+                                                <div className="flex-1">
+                                                    {isEditing ? (
+                                                        // Edit Mode
+                                                        <div className="space-y-3">
+                                                            <textarea
+                                                                value={editText}
+                                                                onChange={(e) => setEditText(e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                rows="3"
+                                                                disabled={isSaving}
+                                                            />
 
-                                                {/* Show notes if any */}
-                                                {question.notes && question.notes.length > 0 && (
-                                                    <div className="mt-2 space-y-1">
-                                                        {question.notes.map((note, idx) => (
-                                                            <div key={idx} className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1">
-                                                                📝 {note.content}
+                                                            {editError && (
+                                                                <p className="text-sm text-red-600">{editError}</p>
+                                                            )}
+
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleSave(question.id)}
+                                                                    disabled={isSaving}
+                                                                    className={`px-4 py-2 rounded-md text-sm font-medium ${isSaving
+                                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                                                        }`}
+                                                                >
+                                                                    {isSaving ? (
+                                                                        <span className="flex items-center">
+                                                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                            </svg>
+                                                                            Saving...
+                                                                        </span>
+                                                                    ) : (
+                                                                        'Save'
+                                                                    )}
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleCancel}
+                                                                    disabled={isSaving}
+                                                                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                                                >
+                                                                    Cancel
+                                                                </button>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                        </div>
+                                                    ) : (
+                                                        // Normal View
+                                                        <div>
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <p className="text-gray-900 flex-1">{question.text}</p>
+                                                                <button
+                                                                    onClick={() => handleEdit(question)}
+                                                                    className="flex-shrink-0 text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center"
+                                                                >
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    </svg>
+                                                                    Edit
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Show flags if any */}
+                                                            {question.flags && question.flags.length > 0 && (
+                                                                <div className="mt-2 space-y-1">
+                                                                    {question.flags.map((flag, idx) => (
+                                                                        <div key={idx} className="text-sm text-orange-700 bg-orange-50 rounded px-2 py-1 inline-block mr-2">
+                                                                            ⚠️ {flag.type}: {flag.explanation}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Show notes if any */}
+                                                            {question.notes && question.notes.length > 0 && (
+                                                                <div className="mt-2 space-y-1">
+                                                                    {question.notes.map((note, idx) => (
+                                                                        <div key={idx} className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1">
+                                                                            📝 {note.content}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     )

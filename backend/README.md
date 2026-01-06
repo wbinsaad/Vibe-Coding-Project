@@ -65,6 +65,8 @@ The API will be available at `http://localhost:5000`
 - `GET /api/health` - Health check endpoint
 - `GET /api/` - API root with endpoint list
 - `POST /api/scripts/generate` - Generate interview script with questions
+- `GET /api/scripts/<script_id>` - Get script by ID with questions
+- `PATCH /api/questions/<question_id>` - Update question text
 
 ## API Testing
 
@@ -202,6 +204,69 @@ curl -X GET http://localhost:5000/api/scripts/999
 {
   "status": "error",
   "error": "Script not found"
+}
+```
+
+### Update Question Text
+
+Update the text of an existing question:
+
+```bash
+curl -X PATCH http://localhost:5000/api/questions/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Updated question text here"
+  }'
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "status": "success",
+  "message": "Question updated successfully",
+  "question": {
+    "id": 1,
+    "text": "Updated question text here",
+    "section": "intro",
+    "order_index": 0,
+    "notes": null,
+    "is_asked": false,
+    "script_id": 1,
+    "created_at": "2026-01-06T19:00:00.000000",
+    "updated_at": "2026-01-06T22:45:00.000000"
+  }
+}
+```
+
+**Validation Errors:**
+
+*Missing or empty text:*
+```bash
+curl -X PATCH http://localhost:5000/api/questions/1 \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+**Response (400):**
+```json
+{
+  "status": "error",
+  "message": "Question text is required and cannot be empty"
+}
+```
+
+*Question not found:*
+```bash
+curl -X PATCH http://localhost:5000/api/questions/999 \
+  -H "Content-Type: application/json" \
+  -d '{"text": "New text"}'
+```
+
+**Response (404):**
+```json
+{
+  "status": "error",
+  "error": "Question not found"
 }
 ```
 

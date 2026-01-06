@@ -57,6 +57,7 @@ def api_root():
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
+            'update_question': 'PATCH /api/questions/<question_id>',
             'scripts': '/api/scripts (coming soon)',
         }
     }), 200
@@ -311,6 +312,71 @@ def get_script(script_id):
     }
     
     return jsonify(response_data), 200
+
+
+@app.route('/api/questions/<int:question_id>', methods=['PATCH'])
+def update_question(question_id):
+    """
+    Update a question's text
+    
+    PATCH /api/questions/<question_id>
+    Body: { "text": "new question text" }
+    
+    Returns:
+        200: Question updated successfully
+        400: Validation error
+        404: Question not found
+    """
+    from models.db import db
+    from models.script import Question
+    from datetime import datetime
+    
+    # Get JSON data
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Request body must be JSON'
+        }), 400
+    
+    # Validate text field
+    if 'text' not in data or not data['text'] or not data['text'].strip():
+        return jsonify({
+            'status': 'error',
+            'message': 'Question text is required and cannot be empty'
+        }), 400
+    
+    # Find question by ID
+    question = Question.query.filter_by(id=question_id).first()
+    
+    if not question:
+        return jsonify({
+            'status': 'error',
+            'error': 'Question not found'
+        }), 404
+    
+    try:
+        # Update question text and timestamp
+        question.text = data['text'].strip()
+        question.updated_at = datetime.utcnow()
+        
+        # Commit changes
+        db.session.commit()
+        
+        # Return updated question
+        return jsonify({
+            'status': 'success',
+            'message': 'Question updated successfully',
+            'question': question.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to update question: {str(e)}'
+        }), 500
 
 
 # ============================================
