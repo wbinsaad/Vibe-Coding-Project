@@ -623,65 +623,26 @@ def reorder_questions(script_id):
 @app.route('/api/scripts/<int:script_id>/checks', methods=['POST'])
 def run_quality_checks(script_id):
     """
-    Run quality checks on all questions in a script
+    Run AI-powered quality checks on all questions in a script using Gemini
     
     POST /api/scripts/<script_id>/checks
+    Query params:
+        - debug=true: Include raw Gemini response in output
     
     Returns:
         200: Checks completed with flags
         404: Script not found
+        500: Gemini API error
     """
     from models.db import db
     from models.script import Script, Question
     from models.flag import Flag
-    import re
-    import string
-    
-    # Stopwords to filter out
-    STOPWORDS = {
-        'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-        'could', 'should', 'may', 'might', 'can', 'shall',
-        'a', 'an', 'and', 'or', 'but', 'if', 'then', 'so',
-        'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with',
-        'from', 'as', 'into', 'about', 'than', 'this', 'that',
-        'these', 'those', 'what', 'which', 'who', 'when', 'where',
-        'why', 'how', 'your', 'their', 'our', 'his', 'her', 'its'
-    }
-    
-    # Generic UX interview keywords that should count as aligned
-    UX_KEYWORDS = {
-        'challenge', 'challenges', 'pain', 'painpoint', 'pain points',
-        'problem', 'problems', 'difficulty', 'difficulties',
-        'frustration', 'frustrations', 'experience', 'experiences',
-        'issue', 'issues', 'barrier', 'barriers', 'need', 'needs',
-        'workflow', 'process', 'task', 'tasks', 'goal', 'goals'
-    }
-    
-    # Bias detection patterns
-    BIAS_LEADING_TERMS = [
-        "don't you think", "wouldn't you", "obviously", "clearly",
-        "isn't it true", "shouldn't", "right?"
-    ]
-    
-    BIAS_ASSUMPTIVE_PHRASES = [
-        "you must", "you always", "you never"
-    ]
-    
-    def tokenize(text):
-        """Tokenize text with lowercase, punctuation removal, stopwords filtering"""
-        # Lowercase
-        text_lower = text.lower()
-        # Remove punctuation
-        text_no_punct = text_lower.translate(str.maketrans('', '', string.punctuation))
-        # Extract words
-        words = re.findall(r'\b\w+\b', text_no_punct)
-        # Filter stopwords and short tokens
-        tokens = set([
-            word for word in words
-            if len(word) > 3 and word not in STOPWORDS
-        ])
-        return tokens
+    from services.gemini_client import generate_with_schema
+    from flask import request
+    import json
+
+    # Check for debug mode
+    debug_mode = request.args.get('debug', 'false').lower() == 'true'
     
     # Validate script exists
     script = Script.query.filter_by(id=script_id).first()
@@ -696,141 +657,112 @@ def run_quality_checks(script_id):
         .order_by(Question.order_index)\
         .all()
     
+    if not questions:
+        return jsonify({
+            'status': 'success',
+            'script_id': script_id,
+            'flags': [],
+            'flag_counts': {'bias': 0, 'alignment': 0}
+        }), 200
+    
     try:
         # Delete existing flags for all questions in this script
         question_ids = [q.id for q in questions]
         if question_ids:
             Flag.query.filter(Flag.question_id.in_(question_ids)).delete(synchronize_session=False)
         
+        # Prepare questions data for Gemini
+        questions_data = [
+            {
+                'id': q.id,
+                'section': q.section,
+                'text': q.text
+            }
+            for q in questions
+        ]
+        
+        # Build the prompt for Gemini
+        prompt = f"""You are an expert UX researcher evaluating interview questions for quality and bias.
+
+**Research Context:**
+- Research Goal: {script.research_goal}
+- Target Users: {script.target_users}
+- Interview Type: {script.interview_type}
+
+**Your Task:**
+Analyze the following interview questions and identify any that have issues with:
+1. **Bias/Leading Language**: Questions that suggest an answer, use assumptive language, or may bias the participant's response
+2. **Weak Alignment**: Questions that don't clearly relate to the research goal or target users
+
+**Important Guidelines:**
+- This is for UX research - questions must be neutral and open-ended
+- Only flag questions that have clear problems (avoid false positives)
+- Be strict but fair - not every question needs a flag
+- For each flagged question, provide a helpful rewrite suggestion that fixes the issue
+
+**Questions to Evaluate:**
+{json.dumps(questions_data, indent=2)}
+
+For each problematic question, return:
+- question_id: the ID of the question
+- type: either "bias" (for leading/biased language) or "alignment" (for weak relevance to research goal)
+- severity: "low", "medium", or "high" based on how problematic it is
+- explanation: a clear, concise explanation of the issue (1-2 sentences)
+- suggestion_rewrite: a rewritten version of the question that fixes the issue
+
+Only include questions that have actual problems. If a question is good, don't include it in the output."""
+
+        # Define JSON schema for structured output
+        schema = {
+            'type': 'object',
+            'properties': {
+                'flags': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'question_id': {'type': 'integer'},
+                            'type': {
+                                'type': 'string',
+                                'enum': ['bias', 'alignment']
+                            },
+                            'severity': {
+                                'type': 'string',
+                                'enum': ['low', 'medium', 'high']
+                            },
+                            'explanation': {'type': 'string'},
+                            'suggestion_rewrite': {'type': 'string'}
+                        },
+                        'required': ['question_id', 'type', 'severity', 'explanation', 'suggestion_rewrite']
+                    }
+                }
+            },
+            'required': ['flags']
+        }
+        
+        # Call Gemini with structured output
+        result, raw_response = generate_with_schema(prompt, schema)
+        
+        # Process Gemini response and create flags
         new_flags = []
         flag_counts = {'bias': 0, 'alignment': 0}
         
-        # Build topic keyword set from research_goal, target_users, and title
-        topic_tokens = set()
-        
-        # Add research_goal tokens
-        topic_tokens.update(tokenize(script.research_goal))
-        
-        # Add target_users tokens
-        topic_tokens.update(tokenize(script.target_users))
-        
-        # Add title tokens if exists
-        if script.title:
-            topic_tokens.update(tokenize(script.title))
-        
-        # Check each question
-        for question in questions:
-            question_text_lower = question.text.lower()
+        for flag_data in result.get('flags', []):
+            # Validate question_id exists
+            if flag_data['question_id'] not in question_ids:
+                continue
             
-            # --- Bias Check ---
-            bias_found = False
-            bias_phrase = None
-            
-            # Check for leading terms
-            for term in BIAS_LEADING_TERMS:
-                if term in question_text_lower:
-                    bias_found = True
-                    bias_phrase = term
-                    break
-            
-            # Check for assumptive phrases
-            if not bias_found:
-                for phrase in BIAS_ASSUMPTIVE_PHRASES:
-                    if phrase in question_text_lower:
-                        bias_found = True
-                        bias_phrase = phrase
-                        break
-            
-            if bias_found:
-                # Create bias flag with improved rewrite
-                rewrite = question.text
-                if bias_phrase:
-                    # Remove the biased phrase
-                    rewrite = re.sub(
-                        re.escape(bias_phrase),
-                        "",
-                        question.text,
-                        flags=re.IGNORECASE
-                    ).strip()
-                    # Clean up extra spaces
-                    rewrite = re.sub(r'\s+', ' ', rewrite)
-                    # Capitalize first letter
-                    if rewrite and rewrite[0].islower():
-                        rewrite = rewrite[0].upper() + rewrite[1:]
-                    # Ensure question mark
-                    if not rewrite.endswith('?'):
-                        rewrite += '?'
-                    
-                    # Make it more neutral
-                    rewrite = rewrite.replace('Right?', '').replace('right?', '').strip()
-                    if rewrite.startswith('And '):
-                        rewrite = rewrite[4:]
-                        rewrite = rewrite[0].upper() + rewrite[1:]
-                
-                flag = Flag(
-                    question_id=question.id,
-                    type='bias',
-                    severity='high',
-                    explanation=f'Contains leading/assumptive language: "{bias_phrase}". This may bias the participant\'s response.',
-                    suggestion_rewrite=rewrite or 'Rephrase to be more neutral and open-ended'
-                )
-                db.session.add(flag)
-                new_flags.append(flag)
-                flag_counts['bias'] += 1
-            
-            # --- Alignment Check ---
-            question_tokens = tokenize(question.text)
-            
-            # Check for UX keywords in the question
-            question_text_normalized = question_text_lower.replace('-', ' ')
-            has_ux_keyword = any(
-                ux_word in question_text_normalized
-                for ux_word in UX_KEYWORDS
+            # Create flag
+            flag = Flag(
+                question_id=flag_data['question_id'],
+                type=flag_data['type'],
+                severity=flag_data['severity'],
+                explanation=flag_data['explanation'],
+                suggestion_rewrite=flag_data['suggestion_rewrite']
             )
-            
-            # Calculate overlap ratio with topic tokens
-            if topic_tokens and question_tokens:
-                overlap = topic_tokens.intersection(question_tokens)
-                overlap_ratio = len(overlap) / len(topic_tokens)
-            else:
-                overlap_ratio = 0.0
-            
-            # Flag only if BOTH conditions are true:
-            # 1. Low overlap (< 0.08)
-            # 2. No UX keywords present
-            if overlap_ratio < 0.08 and not has_ux_keyword:
-                # Generate smart rewrite suggestion
-                # Check if research_goal mentions pain/problems
-                goal_lower = script.research_goal.lower()
-                if 'pain' in goal_lower or 'problem' in goal_lower:
-                    focus_word = 'pain points'
-                elif 'challenge' in goal_lower:
-                    focus_word = 'challenges'
-                else:
-                    focus_word = 'experience'
-                
-                # Get sample topic words for context
-                topic_sample = list(topic_tokens)[:3]
-                topic_context = ' '.join(topic_sample)
-                
-                # Generate rewrite
-                question_base = question.text.rstrip('?')
-                rewrite = f"{question_base} related to {topic_context}?"
-                
-                # Alternative pattern if question is very generic
-                if len(question.text.split()) < 8:
-                    rewrite = f"What {focus_word} do you face regarding {topic_context}?"
-                
-                flag = Flag(
-                    question_id=question.id,
-                    type='alignment',
-                    severity='medium',
-                    explanation='This question may not clearly relate to your research goal. Consider mentioning the topic explicitly.',
-                    suggestion_rewrite=rewrite
-                )
-                db.session.add(flag)
-                new_flags.append(flag)
-                flag_counts['alignment'] += 1
+            db.session.add(flag)
+            new_flags.append(flag)
+            flag_counts[flag_data['type']] += 1
         
         # Commit all flags
         db.session.commit()
@@ -838,14 +770,32 @@ def run_quality_checks(script_id):
         # Format response
         flags_data = [flag.to_dict() for flag in new_flags]
         
-        return jsonify({
+        response_data = {
             'status': 'success',
             'script_id': script_id,
             'flags': flags_data,
             'flag_counts': flag_counts
-        }), 200
+        }
+        
+        # Add raw response if debug mode
+        if debug_mode:
+            response_data['debug'] = {
+                'raw_gemini_response': raw_response,
+                'prompt_length': len(prompt)
+            }
+        
+        return jsonify(response_data), 200
+        
+    except ValueError as e:
+        # API key not configured
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Gemini API configuration error: {str(e)}'
+        }), 500
         
     except Exception as e:
+        # Gemini API error or other failure
         db.session.rollback()
         return jsonify({
             'status': 'error',
