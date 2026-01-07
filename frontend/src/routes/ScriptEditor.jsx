@@ -636,29 +636,37 @@ export default function ScriptEditor() {
                                                             {question.flags && question.flags.length > 0 && (
                                                                 <div className="mt-3 space-y-2">
                                                                     {question.flags.map((flag, idx) => (
-                                                                        <div key={idx} className={`border rounded-lg p-3 ${getSeverityColor(flag.severity)}`}>
-                                                                            <div className="flex items-start justify-between gap-3">
-                                                                                <div className="flex-1">
-                                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                                        <span className="font-semibold text-xs uppercase">
-                                                                                            {flag.type === 'bias' ? '⚠️ Bias' : '📊 Alignment'}
+                                                                        <div key={idx} className={`border rounded-lg p-4 ${getSeverityColor(flag.severity)}`}>
+                                                                            <div className="flex items-start justify-between gap-4">
+                                                                                <div className="flex-1 space-y-2">
+
+                                                                                    {/* Header with badges */}
+                                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide bg-white bg-opacity-60">
+                                                                                            {flag.type === 'bias' ? 'Bias' : 'Alignment'}
                                                                                         </span>
-                                                                                        <span className="text-xs px-2 py-0.5 rounded bg-white bg-opacity-50">
+                                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-white bg-opacity-40">
                                                                                             {flag.severity}
                                                                                         </span>
                                                                                     </div>
-                                                                                    <p className="text-sm font-medium">{flag.explanation}</p>
+
+                                                                                    {/* Explanation */}
+                                                                                    <p className="text-sm leading-relaxed">{flag.explanation}</p>
+
+                                                                                    {/* Suggestion rewrite in lighter block */}
                                                                                     {flag.suggestion_rewrite && (
-                                                                                        <div className="mt-2 pt-2 border-t border-current border-opacity-20">
-                                                                                            <p className="text-xs font-semibold mb-1">Suggested rewrite:</p>
-                                                                                            <p className="text-sm italic">"{flag.suggestion_rewrite}"</p>
+                                                                                        <div className="mt-3 p-3 rounded bg-white bg-opacity-50 border border-current border-opacity-20">
+                                                                                            <p className="text-xs font-semibold mb-1.5 opacity-75">Suggested rewrite:</p>
+                                                                                            <p className="text-sm italic leading-relaxed">"{flag.suggestion_rewrite}"</p>
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
+
+                                                                                {/* Apply button */}
                                                                                 {flag.suggestion_rewrite && (
                                                                                     <button
                                                                                         onClick={() => handleApplySuggestion(question.id, flag.suggestion_rewrite)}
-                                                                                        className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded bg-white bg-opacity-70 hover:bg-opacity-100 transition-colors"
+                                                                                        className="flex-shrink-0 px-4 py-2 text-sm font-medium rounded-md bg-white bg-opacity-80 hover:bg-opacity-100 shadow-sm transition-all hover:shadow-md"
                                                                                         title="Apply this suggestion"
                                                                                     >
                                                                                         Apply
@@ -667,7 +675,11 @@ export default function ScriptEditor() {
                                                                             </div>
                                                                         </div>
                                                                     ))}
-                                                                    <p className="text-xs text-gray-500 italic mt-2">💡 Re-run checks after making edits</p>
+
+                                                                    {/* Note about re-running checks */}
+                                                                    <p className="text-xs text-gray-500 italic pl-1">
+                                                                        Note: Re-run checks after making edits to see updated results
+                                                                    </p>
                                                                 </div>
                                                             )}
 
