@@ -211,35 +211,76 @@ export default function LiveMode() {
                 </div>
             </div>
 
-            {/* Current Question */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div className="flex items-start justify-between mb-4">
-                    <div>
-                        <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full mb-2">
-                            {currentQuestion.section}
-                        </span>
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {currentQuestion.text}
-                        </h3>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                {/* Questions List */}
+                <div className="lg:col-span-1">
+                    <div className="bg-white rounded-lg shadow-md p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Questions</h3>
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {script.questions.map((q, index) => (
+                                <button
+                                    key={q.id}
+                                    onClick={() => setCurrentQuestionIndex(index)}
+                                    className={`w-full text-left p-3 rounded-md transition-all ${index === currentQuestionIndex
+                                            ? 'bg-indigo-100 border-2 border-indigo-500 shadow-sm'
+                                            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                                        }`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <span className="inline-block px-2 py-0.5 bg-white text-xs font-medium rounded mb-1">
+                                                {q.section}
+                                            </span>
+                                            <p className={`text-sm ${index === currentQuestionIndex ? 'text-indigo-900 font-medium' : 'text-gray-700'
+                                                } line-clamp-2`}>
+                                                {q.text}
+                                            </p>
+                                        </div>
+                                        {index === currentQuestionIndex && (
+                                            <svg className="w-5 h-5 text-indigo-600 ml-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* Navigation */}
-                <div className="flex gap-3 mt-6">
-                    <button
-                        onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-                        disabled={currentQuestionIndex === 0}
-                        className="px-4 py-2 border border-gray-300 rounded-md font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Previous
-                    </button>
-                    <button
-                        onClick={() => setCurrentQuestionIndex(prev => Math.min(script.questions.length - 1, prev + 1))}
-                        disabled={currentQuestionIndex === script.questions.length - 1}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Next
-                    </button>
+                {/* Active Question Display */}
+                <div className="lg:col-span-2">
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full mb-2">
+                                    {currentQuestion.section}
+                                </span>
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    {currentQuestion.text}
+                                </h3>
+                            </div>
+                        </div>
+
+                        {/* Navigation */}
+                        <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                            <button
+                                onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                                disabled={currentQuestionIndex === 0}
+                                className="px-4 py-2 border border-gray-300 rounded-md font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                ← Previous
+                            </button>
+                            <button
+                                onClick={() => setCurrentQuestionIndex(prev => Math.min(script.questions.length - 1, prev + 1))}
+                                disabled={currentQuestionIndex === script.questions.length - 1}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next →
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
