@@ -213,6 +213,32 @@ export async function getFollowups(payload) {
 }
 
 /**
+ * Add a follow-up question to the script
+ * @param {number|string} scriptId - Script ID
+ * @param {Object} payload - Question data
+ * @param {string} payload.text - Question text
+ * @param {string} [payload.section] - Section (defaults to 'main')
+ * @returns {Promise<Object>} Created question
+ */
+export async function addQuestionFromFollowup(scriptId, payload) {
+    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/questions/from-followup`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to add question');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */

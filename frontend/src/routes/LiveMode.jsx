@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript, getFollowups } from '../services/api'
+import { getScript, getFollowups, addQuestionFromFollowup } from '../services/api'
 
 export default function LiveMode() {
     const { scriptId } = useParams()
@@ -14,6 +14,8 @@ export default function LiveMode() {
     const [loadingFollowups, setLoadingFollowups] = useState(false)
     const [followupError, setFollowupError] = useState(null)
     const [copiedIndex, setCopiedIndex] = useState(null)
+    const [addingToScript, setAddingToScript] = useState(false)
+    const [successMessage, setSuccessMessage] = useState(null)
 
     // Timer state (simplified - tracks elapsed time)
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -88,8 +90,32 @@ export default function LiveMode() {
         setTimeout(() => setCopiedIndex(null), 2000)
     }
 
-    const handleAddToScript = () => {
-        alert('Coming next: Add to Script feature')
+    const handleAddToScript = async (followupText) => {
+        setAddingToScript(true)
+        setSuccessMessage(null)
+
+        try {
+            // Add question to script
+            await addQuestionFromFollowup(scriptId, {
+                section: 'main',
+                text: followupText
+            })
+
+            // Refetch script to get updated questions
+            const data = await getScript(scriptId)
+            setScript(data)
+
+            // Show success message
+            setSuccessMessage('Added to script')
+            setTimeout(() => setSuccessMessage(null), 3000)
+
+            // Clear followups
+            setFollowups([])
+        } catch (err) {
+            setFollowupError(`Failed to add to script: ${err.message}`)
+        } finally {
+            setAddingToScript(false)
+        }
     }
 
     const formatTime = (seconds) => {
@@ -240,6 +266,17 @@ export default function LiveMode() {
                     </button>
                 </div>
 
+                {successMessage && (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+                        <p className="text-sm text-green-800 flex items-center">
+                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            {successMessage}
+                        </p>
+                    </div>
+                )}
+
                 {followupError && (
                     <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
                         <p className="text-sm text-red-800">Error: {followupError}</p>
@@ -259,10 +296,11 @@ export default function LiveMode() {
                                         {copiedIndex === index ? '✓ Copied' : 'Copy'}
                                     </button>
                                     <button
-                                        onClick={handleAddToScript}
-                                        className="px-3 py-1 text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-md font-medium transition-colors"
+                                        onClick={() => handleAddToScript(followup)}
+                                        disabled={addingToScript}
+                                        className="px-3 py-1 text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Add to Script
+                                        {addingToScript ? 'Adding...' : 'Add to Script'}
                                     </button>
                                 </div>
                             </div>

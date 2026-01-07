@@ -430,6 +430,40 @@ curl -X POST http://localhost:5000/api/followups \
 - Structured interviews get minimal, focused follow-ups (1-2 questions)
 - Semi-structured interviews get more exploratory follow-ups (2-3 questions)
 
+### Add Question from Follow-up
+
+Add a follow-up suggestion as a new question to the script:
+
+```bash
+curl -X POST http://localhost:5000/api/scripts/1/questions/from-followup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "section": "main",
+    "text": "Can you walk me through a specific example of when task tracking became difficult?"
+  }'
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "status": "success",
+  "question": {
+    "id": 42,
+    "script_id": 1,
+    "section": "main",
+    "text": "Can you walk me through a specific example of when task tracking became difficult?",
+    "order_index": 15,
+    "is_asked": false
+  }
+}
+```
+
+**Notes:**
+- `section` defaults to "main" if not provided
+- Valid sections: "intro", "warmup", "main", "closing"
+- `order_index` is automatically set to max + 1
+- `is_asked` defaults to false
+
 ## Database Management
 
 ### Initialize Database

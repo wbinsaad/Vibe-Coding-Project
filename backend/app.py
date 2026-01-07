@@ -57,6 +57,7 @@ def api_root():
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
+            'add_question_from_followup': 'POST /api/scripts/<script_id>/questions/from-followup',
             'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
             'run_checks': 'POST /api/scripts/<script_id>/checks',
             'generate_followups': 'POST /api/followups',
@@ -318,6 +319,55 @@ def get_script(script_id):
     }
     
     return jsonify(response_data), 200
+
+
+@app.route('/api/scripts/<int:script_id>/questions/from-followup', methods=['POST'])
+def add_question_from_followup(script_id):
+    """Create a new question from a follow-up suggestion"""
+    from models.db import db
+    from models.script import Script, Question
+    
+    # Validate script exists
+    script = Script.query.filter_by(id=script_id).first()
+    if not script:
+        return jsonify({'status': 'error', 'error': 'Script not found'}), 404
+    
+    data = request.get_json()
+    
+    # Validate required field
+    if not data or 'text' not in data or not data['text'].strip():
+        return jsonify({'status': 'error', 'message': 'Missing required field: text'}), 400
+    
+    try:
+        # Get section (default to 'main')
+        section = data.get('section', 'main').lower()
+        
+        # Validate section
+        valid_sections = ['intro', 'warmup', 'main', 'closing']
+        if section not in valid_sections:
+            section = 'main'
+        
+        # Get max order_index for this script
+        max_order = db.session.query(db.func.max(Question.order_index)).filter_by(script_id=script_id).scalar()
+        order_index = (max_order + 1) if max_order is not None else 0
+        
+        # Create question
+        question = Question(
+            script_id=script_id,
+            section=section,
+            text=data['text'].strip(),
+            order_index=order_index,
+            is_asked=False
+        )
+        
+        db.session.add(question)
+        db.session.commit()
+        
+        return jsonify({'status': 'success', 'question': question.to_dict()}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'Failed to create question: {str(e)}'}), 500
 
 
 @app.route('/api/questions/<int:question_id>', methods=['PATCH'])
