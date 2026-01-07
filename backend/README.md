@@ -464,6 +464,87 @@ curl -X POST http://localhost:5000/api/scripts/1/questions/from-followup \
 - `order_index` is automatically set to max + 1
 - `is_asked` defaults to false
 
+### Export Script
+
+Export a script in JSON or TEXT format:
+
+**JSON Format:**
+```bash
+curl http://localhost:5000/api/scripts/1/export?format=json
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "script": {
+    "id": 1,
+    "title": "User Research Interview",
+    "research_goal": "Understanding pain points...",
+    "target_users": "Product managers",
+    "duration_minutes": 60,
+    "interview_type": "semi-structured",
+    "created_at": "2024-01-07T12:00:00"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "section": "intro",
+      "order_index": 0,
+      "text": "Can you tell me about your role?",
+      "is_asked": false,
+      "notes": [],
+      "flags": []
+    }
+  ]
+}
+```
+
+**TEXT Format:**
+```bash
+curl http://localhost:5000/api/scripts/1/export?format=text
+```
+
+**Expected Response (200 OK):**
+```
+================================================================================
+INTERVIEW SCRIPT: User Research Interview
+================================================================================
+
+Research Goal: Understanding pain points in team collaboration
+Target Users: Product managers at tech startups
+Duration: 60 minutes
+Interview Type: semi-structured
+Created: 2024-01-07 12:00:00
+
+================================================================================
+
+INTRODUCTION
+--------------------------------------------------------------------------------
+
+1. Can you tell me about your role?
+
+2. How long have you been working in product management?
+
+
+MAIN QUESTIONS
+--------------------------------------------------------------------------------
+
+1. What are the biggest challenges you face in your daily work?
+
+   Notes:
+   - Focus on workflow issues
+   - Ask for specific examples
+
+...
+```
+
+**Notes:**
+- Default format is JSON if not specified
+- TEXT format includes notes indented under questions
+- TEXT format groups questions by section (intro, warmup, main, closing)
+- Returns 404 if script not found
+- Returns 400 if format is invalid
+
 ## Database Management
 
 ### Initialize Database

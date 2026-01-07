@@ -57,6 +57,7 @@ def api_root():
             'health': '/api/health',
             'generate_script': 'POST /api/scripts/generate',
             'get_script': 'GET /api/scripts/<script_id>',
+            'export_script': 'GET /api/scripts/<script_id>/export',
             'add_question_from_followup': 'POST /api/scripts/<script_id>/questions/from-followup',
             'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
             'run_checks': 'POST /api/scripts/<script_id>/checks',
@@ -368,6 +369,151 @@ def add_question_from_followup(script_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': f'Failed to create question: {str(e)}'}), 500
+
+
+@app.route('/api/scripts/<int:script_id>/export', methods=['GET'])
+def export_script(script_id):
+    """
+    Export a script in JSON or TEXT format
+    
+    GET /api/scripts/<script_id>/export?format=json|text
+    
+    Query params:
+        format: 'json' (default) or 'text'
+    
+    Returns:
+        200: Script exported successfully
+        400: Invalid format
+        404: Script not found
+    """
+    from models.db import db
+    from models.script import Script, Question
+    from models.note import Note
+    from models.flag import Flag
+    from flask import Response
+    
+    # Get format from query parameter
+    export_format = request.args.get('format', 'json').lower()
+    
+    if export_format not in ['json', 'text']:
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid format. Must be "json" or "text"'
+        }), 400
+    
+    # Validate script exists
+    script = Script.query.filter_by(id=script_id).first()
+    if not script:
+        return jsonify({
+            'status': 'error',
+            'error': 'Script not found'
+        }), 404
+    
+    # Load questions ordered by order_index
+    questions = Question.query.filter_by(script_id=script_id)\
+        .order_by(Question.order_index)\
+        .all()
+    
+    # Load notes for each question
+    question_notes = {}
+    for question in questions:
+        notes = Note.query.filter_by(question_id=question.id).all()
+        if notes:
+            question_notes[question.id] = [note.to_dict() for note in notes]
+    
+    # Load flags for each question (optional)
+    question_flags = {}
+    for question in questions:
+        flags = Flag.query.filter_by(question_id=question.id).all()
+        if flags:
+            question_flags[question.id] = [flag.to_dict() for flag in flags]
+    
+    if export_format == 'json':
+        # JSON format
+        questions_data = []
+        for q in questions:
+            q_dict = q.to_dict()
+            q_dict['notes'] = question_notes.get(q.id, [])
+            q_dict['flags'] = question_flags.get(q.id, [])
+            questions_data.append(q_dict)
+        
+        export_data = {
+            'script': script.to_dict(),
+            'questions': questions_data
+        }
+        
+        return jsonify(export_data), 200
+    
+    else:
+        # TEXT format - human-readable
+        lines = []
+        
+        # Header
+        lines.append("=" * 80)
+        lines.append(f"INTERVIEW SCRIPT: {script.title or 'Untitled'}")
+        lines.append("=" * 80)
+        lines.append("")
+        
+        # Script details
+        lines.append(f"Research Goal: {script.research_goal}")
+        lines.append(f"Target Users: {script.target_users}")
+        lines.append(f"Duration: {script.duration_minutes} minutes")
+        lines.append(f"Interview Type: {script.interview_type}")
+        lines.append(f"Created: {script.created_at}")
+        lines.append("")
+        lines.append("=" * 80)
+        lines.append("")
+        
+        # Group questions by section
+        sections = {
+            'intro': {'title': 'INTRODUCTION', 'questions': []},
+            'warmup': {'title': 'WARM-UP', 'questions': []},
+            'main': {'title': 'MAIN QUESTIONS', 'questions': []},
+            'closing': {'title': 'CLOSING', 'questions': []}
+        }
+        
+        for question in questions:
+            if question.section in sections:
+                sections[question.section]['questions'].append(question)
+        
+        # Output each section
+        for section_key in ['intro', 'warmup', 'main', 'closing']:
+            section = sections[section_key]
+            if section['questions']:
+                lines.append(section['title'])
+                lines.append("-" * 80)
+                lines.append("")
+                
+                for idx, question in enumerate(section['questions'], 1):
+                    lines.append(f"{idx}. {question.text}")
+                    
+                    # Add notes if present
+                    if question.id in question_notes:
+                        lines.append("")
+                        lines.append("   Notes:")
+                        for note in question_notes[question.id]:
+                            # Indent notes
+                            note_text = note.get('note_text', '')
+                            for note_line in note_text.split('\n'):
+                                lines.append(f"   - {note_line}")
+                    
+                    lines.append("")
+                
+                lines.append("")
+        
+        lines.append("=" * 80)
+        lines.append(f"End of Interview Script")
+        lines.append("=" * 80)
+        
+        text_output = '\n'.join(lines)
+        
+        return Response(
+            text_output,
+            mimetype='text/plain',
+            headers={
+                'Content-Disposition': f'attachment; filename=script_{script_id}_export.txt'
+            }
+        ), 200
 
 
 @app.route('/api/questions/<int:question_id>', methods=['PATCH'])
