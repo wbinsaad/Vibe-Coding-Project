@@ -182,6 +182,37 @@ export async function clearFlags(questionId) {
 }
 
 /**
+ * Generate AI-powered follow-up questions
+ * @param {Object} payload - Follow-up generation parameters
+ * @param {number} payload.script_id - Script ID
+ * @param {number} payload.question_id - Question ID
+ * @param {string} payload.current_question_text - Current question text
+ * @param {string} payload.research_goal - Research goal
+ * @param {string} payload.target_users - Target users
+ * @param {string} payload.interview_type - Interview type ('structured' or 'semi-structured')
+ * @param {string} [payload.notes_context] - Optional notes context
+ * @param {number} [payload.remaining_minutes] - Optional remaining time
+ * @returns {Promise<Object>} Follow-up questions
+ */
+export async function getFollowups(payload) {
+    const response = await fetch(`${API_BASE_URL}/api/followups`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to generate follow-ups');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */
