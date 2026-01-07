@@ -395,10 +395,10 @@ def export_script(script_id):
     # Get format from query parameter
     export_format = request.args.get('format', 'json').lower()
     
-    if export_format not in ['json', 'text']:
+    if export_format not in ['json', 'text', 'pdf']:
         return jsonify({
             'status': 'error',
-            'message': 'Invalid format. Must be "json" or "text"'
+            'message': 'Invalid format. Must be "json", "text", or "pdf"'
         }), 400
     
     # Validate script exists
@@ -444,7 +444,7 @@ def export_script(script_id):
         
         return jsonify(export_data), 200
     
-    else:
+    elif export_format == 'text':
         # TEXT format - human-readable
         lines = []
         
@@ -512,6 +512,118 @@ def export_script(script_id):
             mimetype='text/plain',
             headers={
                 'Content-Disposition': f'attachment; filename=script_{script_id}_export.txt'
+            }
+        ), 200
+
+
+    elif export_format == 'pdf':
+        # PDF format using fpdf2
+        from fpdf import FPDF
+        from io import BytesIO
+        
+        class PDF(FPDF):
+            def header(self):
+                self.set_font('Arial', 'B', 16)
+                self.cell(0, 10, 'Interview Script', 0, 1, 'C')
+                self.ln(5)
+            
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', 'I', 8)
+                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        
+        pdf = PDF()
+        pdf.add_page()
+        
+        # Title
+        pdf.set_font('Arial', 'B', 20)
+        pdf.cell(0, 10, script.title or 'Untitled Script', 0, 1, 'C')
+        pdf.ln(5)
+        
+        # Script metadata - use cell() to avoid multi_cell spacing issues
+        pdf.set_font('Arial', 'B', 11)
+        pdf.cell(0, 6, 'Research Goal:', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 6, script.research_goal or '', 0, 1)
+        pdf.ln(2)
+        
+        pdf.set_font('Arial', 'B', 11)
+        pdf.cell(0, 6, 'Target Users:', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 6, script.target_users or '', 0, 1)
+        pdf.ln(2)
+        
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 6, f"Duration: {script.duration_minutes} minutes  |  Type: {script.interview_type}", 0, 1)
+        pdf.cell(0, 6, f"Created: {script.created_at}", 0, 1)
+        pdf.ln(10)
+        
+        # Group questions by section
+        sections = {
+            'intro': {'title': 'INTRODUCTION', 'questions': []},
+            'warmup': {'title': 'WARM-UP', 'questions': []},
+            'main': {'title': 'MAIN QUESTIONS', 'questions': []},
+            'closing': {'title': 'CLOSING', 'questions': []}
+        }
+        
+        for question in questions:
+            if question.section in sections:
+                sections[question.section]['questions'].append(question)
+        
+        # Output each section
+        for section_key in ['intro', 'warmup', 'main', 'closing']:
+            section = sections[section_key]
+            if section['questions']:
+                # Section header
+                pdf.set_font('Arial', 'B', 14)
+                pdf.cell(0, 10, section['title'], 0, 1)
+                pdf.set_line_width(0.5)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(5)
+                
+                pdf.set_font('Arial', '', 11)
+                
+                for idx, question in enumerate(section['questions'], 1):
+                    # Question text - use cell to avoid spacing issues
+                    pdf.set_font('Arial', 'B', 11)
+                    # For long questions, just use cell - it will auto-wrap if needed
+                    question_text = f"{idx}. {question.text}"
+                    pdf.cell(0, 6, question_text[:150], 0, 1)  # Truncate very long questions
+                    if len(question_text) > 150:
+                        pdf.set_font('Arial', '', 10)
+                        pdf.cell(0, 6, '   ' + question_text[150:], 0, 1)
+                    
+                    # Notes if present
+                    if question.id in question_notes:
+                        pdf.set_font('Arial', 'I', 9)
+                        pdf.set_text_color(80, 80, 80)
+                        
+                        # Use set_x for indentation instead of cell
+                        current_x = pdf.get_x()
+                        pdf.set_x(current_x + 10)
+                        pdf.cell(0, 5, "Notes:", 0, 1)
+                        
+                        for note in question_notes[question.id]:
+                            note_text = note.get('note_text', '')
+                            for note_line in note_text.split('\n'):
+                                if note_line.strip():
+                                    pdf.set_x(current_x + 15)
+                                    pdf.cell(0, 5, f"- {note_line}", 0, 1)
+                        
+                        pdf.set_text_color(0, 0, 0)
+                    
+                    pdf.ln(3)
+                
+                pdf.ln(5)
+        
+        # Generate PDF to bytes
+        pdf_output = bytes(pdf.output())  # Convert bytearray to bytes
+        
+        return Response(
+            pdf_output,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename=script_{script_id}.pdf'
             }
         ), 200
 

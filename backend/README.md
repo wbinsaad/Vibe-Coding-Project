@@ -538,12 +538,25 @@ MAIN QUESTIONS
 ...
 ```
 
+**PDF Format:**
+```bash
+curl -o script.pdf "http://localhost:5000/api/scripts/1/export?format=pdf"
+```
+
+**Expected Response (200 OK):**
+- Returns a PDF file with formatted content
+- Includes title, metadata, section headers (bold)
+- Questions numbered within sections
+- Notes displayed in smaller italic text under questions
+- Automatic page breaks and page numbers
+
 **Notes:**
 - Default format is JSON if not specified
 - TEXT format includes notes indented under questions
 - TEXT format groups questions by section (intro, warmup, main, closing)
+- PDF format provides professional formatting suitable for printing
 - Returns 404 if script not found
-- Returns 400 if format is invalid
+- Returns 400 if format is invalid (must be json, text, or pdf)
 
 ## Database Management
 
