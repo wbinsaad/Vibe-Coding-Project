@@ -239,6 +239,34 @@ export async function addQuestionFromFollowup(scriptId, payload) {
 }
 
 /**
+ * Export a script in specified format
+ * @param {number|string} scriptId - Script ID
+ * @param {string} format - Export format ('json', 'text', or 'pdf')
+ * @returns {Promise<Object|Blob>} Exported data (JSON object, text string, or Blob for PDF)
+ */
+export async function exportScript(scriptId, format) {
+    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/export?format=${format}`);
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || data.message || 'Failed to export script');
+    }
+
+    // For PDF, return blob
+    if (format === 'pdf') {
+        return await response.blob();
+    }
+
+    // For JSON, return parsed JSON
+    if (format === 'json') {
+        return await response.json();
+    }
+
+    // For TEXT, return text
+    return await response.text();
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */
