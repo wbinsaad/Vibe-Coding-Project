@@ -269,6 +269,33 @@ export async function exportScript(scriptId, format, includeNotes = true) {
 }
 
 /**
+ * Save or update a note for a question
+ * @param {number|string} questionId - Question ID
+ * @param {string} content - Note content
+ * @returns {Promise<Object>} Saved note object
+ */
+export async function saveNote(questionId, content) {
+    const response = await fetch(`${API_BASE_URL}/api/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            question_id: questionId,
+            content: content
+        }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to save note');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */

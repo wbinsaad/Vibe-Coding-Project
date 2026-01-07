@@ -62,6 +62,7 @@ def api_root():
             'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
             'run_checks': 'POST /api/scripts/<script_id>/checks',
             'generate_followups': 'POST /api/followups',
+            'save_note': 'POST /api/notes',
             'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
             'delete_question': 'DELETE /api/questions/<question_id>',
@@ -322,6 +323,95 @@ def get_script(script_id):
     return jsonify(response_data), 200
 
 
+@app.route('/api/notes', methods=['POST'])
+def save_note():
+    """
+    Create or update a note for a question
+    
+    POST /api/notes
+    
+    Body:
+        {
+            "question_id": int,
+            "content": "note text"
+        }
+    
+    Returns:
+        200: Note updated successfully
+        201: Note created successfully
+        400: Validation error
+        404: Question not found
+    """
+    from models.db import db
+    from models.script import Question
+    from models.note import Note
+    from datetime import datetime
+    
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data or 'question_id' not in data or 'content' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Missing required fields: question_id and content'
+        }), 400
+    
+    question_id = data['question_id']
+    content = data['content'].strip()
+    
+    # Validate content is not empty
+    if not content:
+        return jsonify({
+            'status': 'error',
+            'message': 'Note content cannot be empty'
+        }), 400
+    
+    # Verify question exists
+    question = Question.query.filter_by(id=question_id).first()
+    if not question:
+        return jsonify({
+            'status': 'error',
+            'message': 'Question not found'
+        }), 404
+    
+    try:
+        # Check if note already exists for this question
+        existing_note = Note.query.filter_by(question_id=question_id).first()
+        
+        if existing_note:
+            # Update existing note
+            existing_note.content = content
+            existing_note.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Note updated',
+                'note': existing_note.to_dict()
+            }), 200
+        else:
+            # Create new note
+            note = Note(
+                question_id=question_id,
+                content=content
+            )
+            db.session.add(note)
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Note created',
+                'note': note.to_dict()
+            }), 201
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to save note: {str(e)}'
+        }), 500
+
+
 @app.route('/api/scripts/<int:script_id>/questions/from-followup', methods=['POST'])
 def add_question_from_followup(script_id):
     """Create a new question from a follow-up suggestion"""
@@ -497,9 +587,9 @@ def export_script(script_id):
                         lines.append("")
                         lines.append("   Notes:")
                         for note in question_notes[question.id]:
-                            # Indent notes
-                            note_text = note.get('note_text', '')
-                            for note_line in note_text.split('\n'):
+                            # Indent notes - use 'content' field, not 'note_text'
+                            note_content = note.get('content', '')
+                            for note_line in note_content.split('\n'):
                                 lines.append(f"   - {note_line}")
                     
                     lines.append("")
@@ -609,8 +699,9 @@ def export_script(script_id):
                         pdf.cell(0, 5, "Notes:", 0, 1)
                         
                         for note in question_notes[question.id]:
-                            note_text = note.get('note_text', '')
-                            for note_line in note_text.split('\n'):
+                            # use 'content' field, not 'note_text'
+                            note_content = note.get('content', '')
+                            for note_line in note_content.split('\n'):
                                 if note_line.strip():
                                     pdf.set_x(current_x + 15)
                                     pdf.cell(0, 5, f"- {note_line}", 0, 1)

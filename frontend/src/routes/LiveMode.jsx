@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript, getFollowups, addQuestionFromFollowup } from '../services/api'
+import { getScript, getFollowups, addQuestionFromFollowup, saveNote } from '../services/api'
 
 export default function LiveMode() {
     const { scriptId } = useParams()
@@ -16,6 +16,10 @@ export default function LiveMode() {
     const [copiedIndex, setCopiedIndex] = useState(null)
     const [addingToScript, setAddingToScript] = useState(false)
     const [successMessage, setSuccessMessage] = useState(null)
+    const [notes, setNotes] = useState({})
+    const [savingNote, setSavingNote] = useState(false)
+    const [noteError, setNoteError] = useState(null)
+    const debounceTimerRef = useRef(null)
 
     // Timer state (simplified - tracks elapsed time)
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -24,6 +28,12 @@ export default function LiveMode() {
     // Load script
     useEffect(() => {
         loadScript()
+        // Cleanup debounce timer on unmount
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current)
+            }
+        }
     }, [scriptId])
 
     // Timer effect
@@ -42,6 +52,17 @@ export default function LiveMode() {
             setLoading(true)
             const data = await getScript(scriptId)
             setScript(data)
+
+            // Initialize notes from loaded questions
+            const initialNotes = {}
+            data.questions.forEach(q => {
+                if (q.notes && q.notes.length > 0) {
+                    initialNotes[q.id] = q.notes[0].content || ''
+                } else {
+                    initialNotes[q.id] = ''
+                }
+            })
+            setNotes(initialNotes)
         } catch (err) {
             setError(err.message)
         } finally {
@@ -116,6 +137,39 @@ export default function LiveMode() {
         } finally {
             setAddingToScript(false)
         }
+    }
+
+    const handleNoteChange = (questionId, newContent) => {
+        // Update local state immediately
+        setNotes(prev => ({
+            ...prev,
+            [questionId]: newContent
+        }))
+
+        // Clear existing timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current)
+        }
+
+        // Set new timer for auto-save (800ms debounce)
+        debounceTimerRef.current = setTimeout(async () => {
+            if (!newContent.trim()) {
+                // Don't save empty notes
+                return
+            }
+
+            try {
+                setSavingNote(true)
+                setNoteError(null)
+                await saveNote(questionId, newContent)
+                // Successfully saved
+            } catch (err) {
+                setNoteError(`Failed to save note: ${err.message}`)
+                setTimeout(() => setNoteError(null), 5000)
+            } finally {
+                setSavingNote(false)
+            }
+        }, 800)
     }
 
     const formatTime = (seconds) => {
@@ -223,8 +277,8 @@ export default function LiveMode() {
                                     key={q.id}
                                     onClick={() => setCurrentQuestionIndex(index)}
                                     className={`w-full text-left p-3 rounded-md transition-all ${index === currentQuestionIndex
-                                            ? 'bg-indigo-100 border-2 border-indigo-500 shadow-sm'
-                                            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                                        ? 'bg-indigo-100 border-2 border-indigo-500 shadow-sm'
+                                        : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between">
@@ -282,6 +336,46 @@ export default function LiveMode() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                    <label htmlFor="note-textarea" className="font-semibold text-gray-900">
+                        Interview Notes
+                    </label>
+                    <div className="flex items-center gap-3">
+                        {savingNote && (
+                            <span className="text-sm text-gray-500 flex items-center">
+                                <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                            </span>
+                        )}
+                        <span className="text-sm text-gray-500">
+                            {notes[currentQuestion.id]?.length || 0} characters
+                        </span>
+                    </div>
+                </div>
+
+                {noteError && (
+                    <div className="mb-3 bg-red-50 border border-red-200 rounded-md p-2">
+                        <p className="text-sm text-red-800">{noteError}</p>
+                    </div>
+                )}
+
+                <textarea
+                    id="note-textarea"
+                    value={notes[currentQuestion.id] || ''}
+                    onChange={(e) => handleNoteChange(currentQuestion.id, e.target.value)}
+                    placeholder="Add notes about this question, observations, or key insights..."
+                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                    Notes auto-save after you stop typing · Associated with this specific question
+                </p>
             </div>
 
             {/* Follow-up Suggestions */}
