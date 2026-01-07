@@ -36,7 +36,7 @@ def test_basic_generation():
         # Test generation
         print("Testing text generation...")
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
+            model='gemma-3-1b-it',
             contents='Write a one-sentence interview question about user experience research.'
         )
         

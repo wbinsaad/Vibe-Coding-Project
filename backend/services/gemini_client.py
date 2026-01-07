@@ -55,7 +55,7 @@ def test_connection():
         client = get_gemini_client()
         # Try a simple generation to verify the connection works
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
+            model='gemma-3-1b-it',
             contents='Say hello in one word'
         )
         return True
