@@ -68,6 +68,7 @@ The API will be available at `http://localhost:5000`
 - `GET /api/scripts/<script_id>` - Get script by ID with questions
 - `POST /api/scripts/<script_id>/reorder` - Reorder questions in script
 - `POST /api/scripts/<script_id>/checks` - Run quality checks on questions
+- `POST /api/followups` - Generate AI-powered follow-up questions
 - `POST /api/questions` - Create new question
 - `PATCH /api/questions/<question_id>` - Update question text
 - `DELETE /api/questions/<question_id>` - Delete question
@@ -389,6 +390,45 @@ curl -X DELETE http://localhost:5000/api/questions/999
   "error": "Question not found"
 }
 ```
+
+### Generate Follow-up Questions
+
+Generate AI-powered follow-up questions during an interview:
+
+```bash
+curl -X POST http://localhost:5000/api/followups \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_id": 1,
+    "question_id": 5,
+    "current_question_text": "What challenges do you face with project management?",
+    "research_goal": "Understanding pain points in team collaboration",
+    "target_users": "Product managers at tech startups",
+    "interview_type": "semi-structured",
+    "notes_context": "User mentioned they struggle with keeping track of tasks",
+    "remaining_minutes": 20
+  }'
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "status": "success",
+  "script_id": 1,
+  "question_id": 5,
+  "followups": [
+    "Can you walk me through a specific example of when task tracking became difficult?",
+    "What tools or methods have you tried to address this issue?",
+    "How does this challenge impact your team's overall productivity?"
+  ]
+}
+```
+
+**Notes:**
+- `notes_context` and `remaining_minutes` are optional
+- Returns 1-3 follow-up questions based on interview type
+- Structured interviews get minimal, focused follow-ups (1-2 questions)
+- Semi-structured interviews get more exploratory follow-ups (2-3 questions)
 
 ## Database Management
 

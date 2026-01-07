@@ -59,6 +59,7 @@ def api_root():
             'get_script': 'GET /api/scripts/<script_id>',
             'reorder_questions': 'POST /api/scripts/<script_id>/reorder',
             'run_checks': 'POST /api/scripts/<script_id>/checks',
+            'generate_followups': 'POST /api/followups',
             'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
             'delete_question': 'DELETE /api/questions/<question_id>',
@@ -875,6 +876,166 @@ def clear_question_flags(question_id):
         return jsonify({
             'status': 'error',
             'message': f'Failed to clear flags: {str(e)}'
+        }), 500
+
+
+@app.route('/api/followups', methods=['POST'])
+def generate_followups():
+    """
+    Generate AI-powered follow-up questions using Gemini
+    
+    POST /api/followups
+    
+    Body:
+        {
+            "script_id": number,
+            "question_id": number,
+            "current_question_text": string,
+            "research_goal": string,
+            "target_users": string,
+            "interview_type": "structured" | "semi-structured",
+            "notes_context": string (optional),
+            "remaining_minutes": number (optional)
+        }
+    
+    Returns:
+        200: Follow-ups generated successfully
+        400: Missing required fields
+        500: Gemini API error
+    """
+    from services.gemini_client import generate_with_schema
+    
+    data = request.get_json()
+    
+    # Validate required fields
+    required = ['script_id', 'question_id', 'current_question_text', 'research_goal', 'target_users', 'interview_type']
+    missing = [field for field in required if field not in data or not data[field]]
+    
+    if missing:
+        return jsonify({
+            'status': 'error',
+            'message': f'Missing required fields: {", ".join(missing)}'
+        }), 400
+    
+    # Validate interview_type
+    if data['interview_type'] not in ['structured', 'semi-structured']:
+        return jsonify({
+            'status': 'error',
+            'message': 'interview_type must be "structured" or "semi-structured"'
+        }), 400
+    
+    try:
+        # Build context for Gemini
+        context_parts = [
+            f"**Current Question:** {data['current_question_text']}",
+            f"**Research Goal:** {data['research_goal']}",
+            f"**Target Users:** {data['target_users']}",
+            f"**Interview Type:** {data['interview_type']}"
+        ]
+        
+        if data.get('notes_context'):
+            context_parts.append(f"**Participant Response/Notes:** {data['notes_context']}")
+        
+        if data.get('remaining_minutes'):
+            context_parts.append(f"**Time Remaining:** {data['remaining_minutes']} minutes")
+        
+        context_str = '\n'.join(context_parts)
+        
+        # Adapt instructions based on interview type
+        if data['interview_type'] == 'structured':
+            style_instructions = """- Keep follow-ups minimal and controlled
+- Only suggest follow-ups if critical information is missing
+- Limit to 1-2 follow-ups maximum
+- Stay very focused on the research goal"""
+        else:  # semi-structured
+            style_instructions = """- Generate 2-3 follow-ups to explore deeper insights
+- Encourage open exploration while staying relevant
+- Help uncover unexpected findings
+- Balance depth with time efficiency"""
+        
+        # Build the prompt
+        prompt = f"""You are an expert UX researcher conducting an interview. Based on the current question and context, generate helpful follow-up questions.
+
+{context_str}
+
+**Your Task:**
+Generate 1-3 follow-up questions that help explore deeper insights related to the current question.
+
+**Guidelines:**
+{style_instructions}
+- All follow-ups must be neutral and non-leading
+- Avoid yes/no questions unless they're necessary for clarification
+- Phrase as open-ended questions that encourage detailed responses
+- Ensure follow-ups align with the research goal
+- No duplicates
+- Each follow-up should explore a different angle or aspect
+
+**Examples of Good Follow-ups:**
+- "Can you walk me through what happened when...?"
+- "What made that experience particularly challenging?"
+- "How did you work around that issue?"
+- "What would an ideal solution look like for you?"
+
+Return 1-3 follow-up questions as a JSON array. Each must be a complete, well-formed question."""
+
+        # Define JSON schema
+        schema = {
+            'type': 'object',
+            'properties': {
+                'followups': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    },
+                    'minItems': 1,
+                    'maxItems': 3
+                }
+            },
+            'required': ['followups']
+        }
+        
+        # Call Gemini
+        result, raw_response = generate_with_schema(prompt, schema)
+        
+        # Validate and clean followups
+        followups = result.get('followups', [])
+        
+        # Ensure we have at least 1 and at most 3
+        followups = followups[:3]
+        
+        # Filter out empty strings and duplicates
+        seen = set()
+        clean_followups = []
+        for f in followups:
+            f_clean = f.strip()
+            f_lower = f_clean.lower()
+            if f_clean and f_lower not in seen and len(f_clean) > 10:
+                clean_followups.append(f_clean)
+                seen.add(f_lower)
+        
+        # Ensure all are questions (end with ?)
+        clean_followups = [
+            f if f.endswith('?') else f + '?'
+            for f in clean_followups
+        ]
+        
+        return jsonify({
+            'status': 'success',
+            'script_id': data['script_id'],
+            'question_id': data['question_id'],
+            'followups': clean_followups
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({
+            'status': 'error',
+            'error': f'Gemini API configuration error: {str(e)}'
+        }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': f'Gemini followup generation failed: {str(e)}'
         }), 500
 
 
