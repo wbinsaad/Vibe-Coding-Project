@@ -163,6 +163,25 @@ export async function runChecks(scriptId) {
 }
 
 /**
+ * Clear all flags for a question
+ * @param {number|string} questionId - Question ID
+ * @returns {Promise<Object>} Clear flags confirmation
+ */
+export async function clearFlags(questionId) {
+    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}/flags`, {
+        method: 'DELETE',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to clear flags');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */

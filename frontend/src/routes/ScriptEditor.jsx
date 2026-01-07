@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks } from '../services/api'
+import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks, clearFlags } from '../services/api'
 
 export default function ScriptEditor() {
     const { scriptId } = useParams()
@@ -187,7 +187,10 @@ export default function ScriptEditor() {
                 text: suggestionText
             })
 
-            // Update local state - update text and remove flags for this question
+            // Clear flags for this question via API
+            await clearFlags(questionId)
+
+            // Update local state - update text and remove flags
             setQuestions(prevQuestions =>
                 prevQuestions.map(q =>
                     q.id === questionId

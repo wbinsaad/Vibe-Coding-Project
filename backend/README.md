@@ -71,6 +71,7 @@ The API will be available at `http://localhost:5000`
 - `POST /api/questions` - Create new question
 - `PATCH /api/questions/<question_id>` - Update question text
 - `DELETE /api/questions/<question_id>` - Delete question
+- `DELETE /api/questions/<question_id>/flags` - Clear all flags for a question
 
 ## API Testing
 

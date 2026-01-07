@@ -62,6 +62,7 @@ def api_root():
             'create_question': 'POST /api/questions',
             'update_question': 'PATCH /api/questions/<question_id>',
             'delete_question': 'DELETE /api/questions/<question_id>',
+            'clear_flags': 'DELETE /api/questions/<question_id>/flags',
             'scripts': '/api/scripts (coming soon)',
         }
     }), 200
@@ -849,6 +850,38 @@ def run_quality_checks(script_id):
         return jsonify({
             'status': 'error',
             'message': f'Failed to run quality checks: {str(e)}'
+        }), 500
+
+
+@app.route('/api/questions/<int:question_id>/flags', methods=['DELETE'])
+def clear_question_flags(question_id):
+    """
+    Clear all flags for a question
+    
+    DELETE /api/questions/<question_id>/flags
+    
+    Returns:
+        200: Flags cleared successfully
+    """
+    from models.db import db
+    from models.flag import Flag
+    
+    try:
+        # Delete all flags for this question
+        deleted_count = Flag.query.filter_by(question_id=question_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Flags cleared',
+            'deleted_count': deleted_count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to clear flags: {str(e)}'
         }), 500
 
 
