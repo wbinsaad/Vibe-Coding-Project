@@ -10,6 +10,7 @@ export default function Export() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [selectedFormat, setSelectedFormat] = useState('json')
+    const [includeNotes, setIncludeNotes] = useState(true)
     const [exporting, setExporting] = useState(false)
     const [exportError, setExportError] = useState(null)
     const [copySuccess, setCopySuccess] = useState(false)
@@ -36,7 +37,7 @@ export default function Export() {
         setExportError(null)
 
         try {
-            const data = await exportScript(scriptId, selectedFormat)
+            const data = await exportScript(scriptId, selectedFormat, includeNotes)
 
             if (selectedFormat === 'pdf') {
                 // Download PDF blob
@@ -86,7 +87,7 @@ export default function Export() {
         setCopySuccess(false)
 
         try {
-            const data = await exportScript(scriptId, selectedFormat)
+            const data = await exportScript(scriptId, selectedFormat, includeNotes)
 
             const textToCopy = selectedFormat === 'json'
                 ? JSON.stringify(data, null, 2)
@@ -181,14 +182,39 @@ export default function Export() {
             <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Format</h3>
 
+                {/* Include Notes Toggle */}
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <label htmlFor="include-notes" className="font-medium text-gray-900">
+                                Include Notes
+                            </label>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Include any notes you've added to questions in the export
+                            </p>
+                        </div>
+                        <button
+                            id="include-notes"
+                            onClick={() => setIncludeNotes(!includeNotes)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${includeNotes ? 'bg-indigo-600' : 'bg-gray-200'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${includeNotes ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
+                </div>
+
                 {/* Format Selector */}
                 <div className="mb-6">
                     <div className="grid grid-cols-3 gap-4">
                         <button
                             onClick={() => setSelectedFormat('json')}
                             className={`p-4 border-2 rounded-lg transition-all ${selectedFormat === 'json'
-                                    ? 'border-indigo-500 bg-indigo-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <div className="text-center">
@@ -203,8 +229,8 @@ export default function Export() {
                         <button
                             onClick={() => setSelectedFormat('text')}
                             className={`p-4 border-2 rounded-lg transition-all ${selectedFormat === 'text'
-                                    ? 'border-indigo-500 bg-indigo-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <div className="text-center">
@@ -219,8 +245,8 @@ export default function Export() {
                         <button
                             onClick={() => setSelectedFormat('pdf')}
                             className={`p-4 border-2 rounded-lg transition-all ${selectedFormat === 'pdf'
-                                    ? 'border-indigo-500 bg-indigo-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <div className="text-center">

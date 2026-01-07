@@ -242,10 +242,12 @@ export async function addQuestionFromFollowup(scriptId, payload) {
  * Export a script in specified format
  * @param {number|string} scriptId - Script ID
  * @param {string} format - Export format ('json', 'text', or 'pdf')
+ * @param {boolean} includeNotes - Whether to include notes (default: true)
  * @returns {Promise<Object|Blob>} Exported data (JSON object, text string, or Blob for PDF)
  */
-export async function exportScript(scriptId, format) {
-    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/export?format=${format}`);
+export async function exportScript(scriptId, format, includeNotes = true) {
+    const includeNotesParam = includeNotes ? 'true' : 'false';
+    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/export?format=${format}&include_notes=${includeNotesParam}`);
 
     if (!response.ok) {
         const data = await response.json();

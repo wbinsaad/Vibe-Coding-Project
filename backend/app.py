@@ -416,10 +416,15 @@ def export_script(script_id):
     
     # Load notes for each question
     question_notes = {}
-    for question in questions:
-        notes = Note.query.filter_by(question_id=question.id).all()
-        if notes:
-            question_notes[question.id] = [note.to_dict() for note in notes]
+    
+    # Check include_notes parameter (default true)
+    include_notes = request.args.get('include_notes', 'true').lower() == 'true'
+    
+    if include_notes:
+        for question in questions:
+            notes = Note.query.filter_by(question_id=question.id).all()
+            if notes:
+                question_notes[question.id] = [note.to_dict() for note in notes]
     
     # Load flags for each question (optional)
     question_flags = {}
