@@ -690,27 +690,42 @@ def run_quality_checks(script_id):
 - Interview Type: {script.interview_type}
 
 **Your Task:**
-Analyze the following interview questions and identify any that have issues with:
-1. **Bias/Leading Language**: Questions that suggest an answer, use assumptive language, or may bias the participant's response
-2. **Weak Alignment**: Questions that don't clearly relate to the research goal or target users
+Analyze the following interview questions and identify any that have CLEAR, SERIOUS issues with:
 
-**Important Guidelines:**
-- This is for UX research - questions must be neutral and open-ended
-- Only flag questions that have clear problems (avoid false positives)
-- Be strict but fair - not every question needs a flag
-- For each flagged question, provide a helpful rewrite suggestion that fixes the issue
+1. **Bias/Leading Language**: 
+   - Questions that explicitly suggest an answer or assume facts
+   - Use of words like "obviously", "clearly", "don't you think", "you must", "you always", "you never"
+   - Questions that pressure participants toward a specific response
+   
+2. **Weak Alignment**: 
+   - Questions that are COMPLETELY OFF-TOPIC and unrelated to the research goal
+   - Generic questions are FINE if they help understand user experience (e.g., "Can you tell me more?", "What challenges do you face?")
+   - Do NOT flag a question just because it doesn't repeat keywords from the research goal
+
+**IMPORTANT - What NOT to Flag:**
+- Generic follow-up questions like "Tell me more", "Can you explain?", "What else?" - these are GOOD
+- Questions about user experience, challenges, pain points, needs - these align with UX research
+- Questions that explore user behavior, goals, or context - these are relevant
+- Questions in the warmup or closing sections that build rapport
+- Only flag alignment issues when a question is CLEARLY and COMPLETELY off-topic
+
+**Guidelines:**
+- Be VERY STRICT - only flag questions with clear, obvious problems
+- Avoid false positives - when in doubt, do NOT flag
+- For rewrites: preserve the original intent, make minimal changes, do not add assumptions
+- Explanations should be specific and actionable (not generic)
 
 **Questions to Evaluate:**
 {json.dumps(questions_data, indent=2)}
 
-For each problematic question, return:
+For each CLEARLY problematic question, return:
 - question_id: the ID of the question
-- type: either "bias" (for leading/biased language) or "alignment" (for weak relevance to research goal)
+- type: either "bias" (for leading/biased language) or "alignment" (for completely off-topic questions)
 - severity: "low", "medium", or "high" based on how problematic it is
-- explanation: a clear, concise explanation of the issue (1-2 sentences)
-- suggestion_rewrite: a rewritten version of the question that fixes the issue
+- explanation: a specific explanation of the exact issue (be concrete, cite the problematic phrase)
+- suggestion_rewrite: a rewritten version that fixes the issue while preserving the original intent
 
-Only include questions that have actual problems. If a question is good, don't include it in the output."""
+**REMEMBER:** Only include questions that have CLEAR, SERIOUS problems. Most questions should NOT have flags."""
 
         # Define JSON schema for structured output
         schema = {
@@ -747,9 +762,37 @@ Only include questions that have actual problems. If a question is good, don't i
         new_flags = []
         flag_counts = {'bias': 0, 'alignment': 0}
         
+        # Create a lookup for questions by ID
+        questions_by_id = {q.id: q for q in questions}
+        
         for flag_data in result.get('flags', []):
             # Validate question_id exists
             if flag_data['question_id'] not in question_ids:
+                continue
+            
+            # Post-processing validation
+            explanation = flag_data.get('explanation', '').strip()
+            suggestion = flag_data.get('suggestion_rewrite', '').strip()
+            
+            # Skip if explanation is empty or too generic
+            if not explanation or len(explanation) < 10:
+                continue
+            
+            # If suggestion is too short or empty, generate a safe default
+            if not suggestion or len(suggestion) < 10:
+                question = questions_by_id.get(flag_data['question_id'])
+                if question:
+                    if flag_data['type'] == 'bias':
+                        # Simple neutral version
+                        suggestion = f"Can you describe {question.text.lower().replace('?', '').strip()}?"
+                    else:
+                        # Add context from research goal
+                        suggestion = f"{question.text.rstrip('?')} in the context of {script.research_goal.lower()}?"
+            
+            # Ensure suggestion doesn't just repeat the original
+            question = questions_by_id.get(flag_data['question_id'])
+            if question and suggestion.strip().lower() == question.text.strip().lower():
+                # Skip if the suggestion is identical to the original
                 continue
             
             # Create flag
@@ -757,8 +800,8 @@ Only include questions that have actual problems. If a question is good, don't i
                 question_id=flag_data['question_id'],
                 type=flag_data['type'],
                 severity=flag_data['severity'],
-                explanation=flag_data['explanation'],
-                suggestion_rewrite=flag_data['suggestion_rewrite']
+                explanation=explanation,
+                suggestion_rewrite=suggestion
             )
             db.session.add(flag)
             new_flags.append(flag)
