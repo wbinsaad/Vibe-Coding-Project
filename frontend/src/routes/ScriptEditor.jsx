@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions } from '../services/api'
+import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks } from '../services/api'
 
 export default function ScriptEditor() {
     const { scriptId } = useParams()
@@ -23,6 +23,10 @@ export default function ScriptEditor() {
     const [creatingQuestion, setCreatingQuestion] = useState(false)
     const [addError, setAddError] = useState('')
 
+    // Quality checks state
+    const [runningChecks, setRunningChecks] = useState(false)
+    const [flagCounts, setFlagCounts] = useState({ bias: 0, alignment: 0 })
+
     // Fetch script on mount
     useEffect(() => {
         async function fetchScript() {
@@ -31,6 +35,9 @@ export default function ScriptEditor() {
                 const data = await getScript(scriptId)
                 setScript(data.script)
                 setQuestions(data.questions)
+
+                // Calculate flag counts
+                calculateFlagCounts(data.questions)
             } catch (err) {
                 setError(err.message || 'Failed to load script')
             } finally {
@@ -40,6 +47,43 @@ export default function ScriptEditor() {
 
         fetchScript()
     }, [scriptId])
+
+    // Calculate flag counts from questions
+    const calculateFlagCounts = (questionsList) => {
+        let bias = 0
+        let alignment = 0
+
+        questionsList.forEach(q => {
+            if (q.flags) {
+                q.flags.forEach(flag => {
+                    if (flag.type === 'bias') bias++
+                    else if (flag.type === 'alignment') alignment++
+                })
+            }
+        })
+
+        setFlagCounts({ bias, alignment })
+    }
+
+    // Run quality checks
+    const handleRunChecks = async () => {
+        setRunningChecks(true)
+
+        try {
+            // Run checks
+            await runChecks(scriptId)
+
+            // Refetch script to get updated flags
+            const data = await getScript(scriptId)
+            setQuestions(data.questions)
+            calculateFlagCounts(data.questions)
+
+        } catch (err) {
+            alert(`Failed to run checks: ${err.message}`)
+        } finally {
+            setRunningChecks(false)
+        }
+    }
 
     // Start editing a question
     const handleEdit = (question) => {
@@ -73,11 +117,17 @@ export default function ScriptEditor() {
             })
 
             // Update local state with updated question
-            setQuestions(prevQuestions =>
-                prevQuestions.map(q =>
-                    q.id === questionId ? { ...q, ...result.question } : q
+            // Clear flags since the question text has changed
+            setQuestions(prevQuestions => {
+                const updated = prevQuestions.map(q =>
+                    q.id === questionId
+                        ? { ...q, ...result.question, flags: [] }
+                        : q
                 )
-            )
+                // Recalculate flag counts after clearing flags
+                calculateFlagCounts(updated)
+                return updated
+            })
 
             // Exit edit mode
             setEditingQuestionId(null)
@@ -149,9 +199,9 @@ export default function ScriptEditor() {
             await deleteQuestion(questionId)
 
             // Remove from local state
-            setQuestions(prevQuestions =>
-                prevQuestions.filter(q => q.id !== questionId)
-            )
+            const updatedQuestions = questions.filter(q => q.id !== questionId)
+            setQuestions(updatedQuestions)
+            calculateFlagCounts(updatedQuestions)
         } catch (err) {
             alert(`Failed to delete question: ${err.message}`)
         }
@@ -256,6 +306,20 @@ export default function ScriptEditor() {
         closing: { title: 'Closing', color: 'purple', icon: '🎯' }
     }
 
+    // Get severity color classes
+    const getSeverityColor = (severity) => {
+        switch (severity) {
+            case 'high':
+                return 'bg-red-50 border-red-200 text-red-800'
+            case 'medium':
+                return 'bg-yellow-50 border-yellow-200 text-yellow-800'
+            case 'low':
+                return 'bg-blue-50 border-blue-200 text-blue-800'
+            default:
+                return 'bg-gray-50 border-gray-200 text-gray-800'
+        }
+    }
+
     // Loading state
     if (loading) {
         return (
@@ -344,6 +408,15 @@ export default function ScriptEditor() {
                         </svg>
                         {questions.length} questions
                     </div>
+                    {/* Flag counts summary */}
+                    {(flagCounts.bias > 0 || flagCounts.alignment > 0) && (
+                        <div className="flex items-center font-medium">
+                            <svg className="w-5 h-5 mr-2 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Bias: {flagCounts.bias} | Alignment: {flagCounts.alignment}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -358,6 +431,31 @@ export default function ScriptEditor() {
 
             {/* Action Buttons */}
             <div className="flex gap-3 mb-8">
+                <button
+                    onClick={handleRunChecks}
+                    disabled={runningChecks}
+                    className={`inline-flex items-center px-4 py-2 font-medium rounded-md transition-colors shadow-md ${runningChecks
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-orange-600 text-white hover:bg-orange-700'
+                        }`}
+                >
+                    {runningChecks ? (
+                        <>
+                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Running Checks...
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Run Checks
+                        </>
+                    )}
+                </button>
                 <Link
                     to={`/live/${scriptId}`}
                     className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-md hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md"
@@ -413,8 +511,8 @@ export default function ScriptEditor() {
                                                         onClick={() => handleMoveUp(question, sectionQuestions, index)}
                                                         disabled={isFirst}
                                                         className={`p-1 rounded ${isFirst
-                                                                ? 'text-gray-300 cursor-not-allowed'
-                                                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                                            ? 'text-gray-300 cursor-not-allowed'
+                                                            : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
                                                             }`}
                                                         title="Move up"
                                                     >
@@ -426,8 +524,8 @@ export default function ScriptEditor() {
                                                         onClick={() => handleMoveDown(question, sectionQuestions, index)}
                                                         disabled={isLast}
                                                         className={`p-1 rounded ${isLast
-                                                                ? 'text-gray-300 cursor-not-allowed'
-                                                                : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
+                                                            ? 'text-gray-300 cursor-not-allowed'
+                                                            : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
                                                             }`}
                                                         title="Move down"
                                                     >
@@ -461,8 +559,8 @@ export default function ScriptEditor() {
                                                                     onClick={() => handleSave(question.id)}
                                                                     disabled={isSaving}
                                                                     className={`px-4 py-2 rounded-md text-sm font-medium ${isSaving
-                                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                                                         }`}
                                                                 >
                                                                     {isSaving ? (
@@ -515,10 +613,28 @@ export default function ScriptEditor() {
 
                                                             {/* Show flags if any */}
                                                             {question.flags && question.flags.length > 0 && (
-                                                                <div className="mt-2 space-y-1">
+                                                                <div className="mt-3 space-y-2">
                                                                     {question.flags.map((flag, idx) => (
-                                                                        <div key={idx} className="text-sm text-orange-700 bg-orange-50 rounded px-2 py-1 inline-block mr-2">
-                                                                            ⚠️ {flag.type}: {flag.explanation}
+                                                                        <div key={idx} className={`border rounded-lg p-3 ${getSeverityColor(flag.severity)}`}>
+                                                                            <div className="flex items-start justify-between">
+                                                                                <div className="flex-1">
+                                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                                        <span className="font-semibold text-xs uppercase">
+                                                                                            {flag.type === 'bias' ? '⚠️ Bias' : '📊 Alignment'}
+                                                                                        </span>
+                                                                                        <span className="text-xs px-2 py-0.5 rounded bg-white bg-opacity-50">
+                                                                                            {flag.severity}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <p className="text-sm font-medium">{flag.explanation}</p>
+                                                                                    {flag.suggestion_rewrite && (
+                                                                                        <div className="mt-2 pt-2 border-t border-current border-opacity-20">
+                                                                                            <p className="text-xs font-semibold mb-1">Suggested rewrite:</p>
+                                                                                            <p className="text-sm italic">"{flag.suggestion_rewrite}"</p>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -569,8 +685,8 @@ export default function ScriptEditor() {
                                                         onClick={() => handleSaveNew(section)}
                                                         disabled={creatingQuestion}
                                                         className={`px-4 py-2 rounded-md text-sm font-medium ${creatingQuestion
-                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                : 'bg-green-600 text-white hover:bg-green-700'
+                                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                            : 'bg-green-600 text-white hover:bg-green-700'
                                                             }`}
                                                     >
                                                         {creatingQuestion ? (

@@ -144,6 +144,25 @@ export async function reorderQuestions(scriptId, payload) {
 }
 
 /**
+ * Run quality checks on a script
+ * @param {number|string} scriptId - Script ID
+ * @returns {Promise<Object>} Checks result with flags
+ */
+export async function runChecks(scriptId) {
+    const response = await fetch(`${API_BASE_URL}/api/scripts/${scriptId}/checks`, {
+        method: 'POST',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || 'Failed to run quality checks');
+    }
+
+    return data;
+}
+
+/**
  * Check API health
  * @returns {Promise<Object>} Health status
  */
