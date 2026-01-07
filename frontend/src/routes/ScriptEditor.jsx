@@ -117,17 +117,11 @@ export default function ScriptEditor() {
             })
 
             // Update local state with updated question
-            // Clear flags since the question text has changed
-            setQuestions(prevQuestions => {
-                const updated = prevQuestions.map(q =>
-                    q.id === questionId
-                        ? { ...q, ...result.question, flags: [] }
-                        : q
+            setQuestions(prevQuestions =>
+                prevQuestions.map(q =>
+                    q.id === questionId ? { ...q, ...result.question } : q
                 )
-                // Recalculate flag counts after clearing flags
-                calculateFlagCounts(updated)
-                return updated
-            })
+            )
 
             // Exit edit mode
             setEditingQuestionId(null)
@@ -182,6 +176,33 @@ export default function ScriptEditor() {
             setAddError(err.message || 'Failed to create question')
         } finally {
             setCreatingQuestion(false)
+        }
+    }
+
+    // Apply suggestion from flag
+    const handleApplySuggestion = async (questionId, suggestionText) => {
+        try {
+            // Call API to update question text
+            await updateQuestion(questionId, {
+                text: suggestionText
+            })
+
+            // Update local state - update text and remove flags for this question
+            setQuestions(prevQuestions =>
+                prevQuestions.map(q =>
+                    q.id === questionId
+                        ? { ...q, text: suggestionText, flags: [] }
+                        : q
+                )
+            )
+
+            // Recalculate flag counts
+            const updatedQuestions = questions.map(q =>
+                q.id === questionId ? { ...q, flags: [] } : q
+            )
+            calculateFlagCounts(updatedQuestions)
+        } catch (err) {
+            alert(`Failed to apply suggestion: ${err.message}`)
         }
     }
 
@@ -616,7 +637,7 @@ export default function ScriptEditor() {
                                                                 <div className="mt-3 space-y-2">
                                                                     {question.flags.map((flag, idx) => (
                                                                         <div key={idx} className={`border rounded-lg p-3 ${getSeverityColor(flag.severity)}`}>
-                                                                            <div className="flex items-start justify-between">
+                                                                            <div className="flex items-start justify-between gap-3">
                                                                                 <div className="flex-1">
                                                                                     <div className="flex items-center gap-2 mb-1">
                                                                                         <span className="font-semibold text-xs uppercase">
@@ -634,9 +655,19 @@ export default function ScriptEditor() {
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
+                                                                                {flag.suggestion_rewrite && (
+                                                                                    <button
+                                                                                        onClick={() => handleApplySuggestion(question.id, flag.suggestion_rewrite)}
+                                                                                        className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded bg-white bg-opacity-70 hover:bg-opacity-100 transition-colors"
+                                                                                        title="Apply this suggestion"
+                                                                                    >
+                                                                                        Apply
+                                                                                    </button>
+                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                     ))}
+                                                                    <p className="text-xs text-gray-500 italic mt-2">💡 Re-run checks after making edits</p>
                                                                 </div>
                                                             )}
 
