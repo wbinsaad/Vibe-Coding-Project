@@ -75,7 +75,7 @@ def api_root():
 @app.route('/api/scripts/generate', methods=['POST'])
 def generate_script():
     """
-    Generate a new interview script with questions
+    Generate a new interview script with questions using Gemini AI
     
     POST /api/scripts/generate
     Body:
@@ -86,15 +86,20 @@ def generate_script():
         "interview_type": "structured" | "semi-structured"
     }
     
+    Query params:
+        ?debug=true - Include raw Gemini response in output
+    
     Returns:
         201: Script and questions created successfully
         400: Validation error
+        500: Gemini or server error
     """
     from models.db import db
     from models.script import Script, Question
     
     # Get JSON data from request
     data = request.get_json()
+    debug_mode = request.args.get('debug', '').lower() == 'true'
     
     if not data:
         return jsonify({
@@ -137,10 +142,42 @@ def generate_script():
             'message': 'duration_minutes must be a positive integer'
         }), 400
     
+    # Try Gemini generation
+    gemini_result = None
+    gemini_raw = None
+    use_fallback = False
+    
+    try:
+        gemini_result, gemini_raw = _generate_script_with_gemini(
+            research_goal=data['research_goal'],
+            target_users=data['target_users'],
+            duration_minutes=duration,
+            interview_type=data['interview_type']
+        )
+    except Exception as gemini_error:
+        # Check if fallback is allowed
+        allow_fallback = os.getenv('ALLOW_DUMMY_FALLBACK', 'false').lower() == 'true'
+        
+        if allow_fallback:
+            use_fallback = True
+            print(f"Gemini failed, using fallback: {str(gemini_error)}")
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Script generation failed: {str(gemini_error)}',
+                'error_type': 'gemini_error'
+            }), 500
+    
     # Create the script
     try:
+        # Determine title
+        if gemini_result and gemini_result.get('title'):
+            title = gemini_result['title'][:100]
+        else:
+            title = f"Interview: {data['target_users'][:50]}"
+        
         script = Script(
-            title=f"Interview: {data['target_users'][:50]}",  # Auto-generate title
+            title=title,
             research_goal=data['research_goal'],
             target_users=data['target_users'],
             duration_minutes=duration,
@@ -151,8 +188,11 @@ def generate_script():
         db.session.add(script)
         db.session.flush()  # Get the script ID without committing
         
-        # Generate dummy questions
-        questions = _generate_dummy_questions(script.id, data['research_goal'], data['target_users'])
+        # Generate questions
+        if use_fallback:
+            questions = _generate_dummy_questions(script.id, data['research_goal'], data['target_users'])
+        else:
+            questions = _create_questions_from_gemini(script.id, gemini_result)
         
         # Add all questions to the session
         for question in questions:
@@ -170,6 +210,13 @@ def generate_script():
             'questions': [q.to_dict() for q in questions]
         }
         
+        # Add debug info if requested
+        if debug_mode and gemini_raw:
+            response_data['gemini_raw'] = gemini_raw
+        
+        if use_fallback:
+            response_data['fallback_used'] = True
+        
         return jsonify(response_data), 201
         
     except Exception as e:
@@ -178,6 +225,139 @@ def generate_script():
             'status': 'error',
             'message': f'Failed to create script: {str(e)}'
         }), 500
+
+
+def _generate_script_with_gemini(research_goal, target_users, duration_minutes, interview_type):
+    """
+    Generate interview questions using Gemini AI.
+    
+    Args:
+        research_goal: Research objective for the interview
+        target_users: Target user group
+        duration_minutes: Interview duration in minutes
+        interview_type: 'structured' or 'semi-structured'
+        
+    Returns:
+        tuple: (parsed_result, raw_response)
+    """
+    from services.gemini_client import generate_with_schema
+    
+    # Determine question distribution based on duration
+    if duration_minutes <= 10:
+        distribution = "intro: 1, warmup: 1, main: 3, closing: 1"
+    elif duration_minutes <= 30:
+        distribution = "intro: 2, warmup: 2, main: 5-7, closing: 2"
+    else:  # 45-60+ minutes
+        distribution = "intro: 2, warmup: 3, main: 9-12, closing: 2-3"
+    
+    # Interview type specific instructions
+    if interview_type == 'structured':
+        type_instructions = """
+- Questions should be fixed and specific
+- Minimize open-ended follow-up prompts
+- Focus on clear, direct questions that can be asked consistently across interviews"""
+    else:  # semi-structured
+        type_instructions = """
+- Include some optional probing prompts after key questions
+- Probing prompts should be in parentheses, like: (Probe: "Can you tell me more about that?")
+- Allow flexibility for natural conversation flow
+- Include follow-up variants like: "What happened next?" or "How did that make you feel?" """
+    
+    prompt = f"""You are an expert UX researcher creating a professional interview script.
+
+## Context
+- Research Goal: {research_goal}
+- Target Users: {target_users}
+- Interview Duration: {duration_minutes} minutes
+- Interview Type: {interview_type}
+
+## Requirements
+
+Generate an interview script with these sections:
+- **intro**: Introduction and rapport building (thank participant, explain purpose, consent)
+- **warmup**: Easy warm-up questions to get participant comfortable
+- **main**: Core questions that address the research goal
+- **closing**: Wrap-up, final thoughts, and thank you
+
+## Question Distribution (based on {duration_minutes} minutes)
+{distribution}
+
+## Best Practices (MANDATORY)
+1. All questions must be NEUTRAL and NON-LEADING
+2. Avoid yes/no questions - use open-ended phrasing
+3. Avoid double-barreled questions (asking two things at once)
+4. Avoid biased or assumptive language
+5. Questions should be specific enough to yield actionable insights
+6. Use beginner-friendly, conversational tone
+7. Avoid jargon unless interviewing experts
+
+## Interview Type Instructions
+{type_instructions}
+
+## Output Format
+Generate a JSON object with:
+- title: A descriptive title for this interview script (max 100 chars)
+- sections: Object containing arrays of question strings for each section
+
+Return ONLY valid JSON matching the schema below."""
+
+    schema = {
+        "title": "string - Descriptive title for the interview",
+        "sections": {
+            "intro": ["array of introduction questions/statements"],
+            "warmup": ["array of warm-up questions"],
+            "main": ["array of main research questions"],
+            "closing": ["array of closing questions"]
+        }
+    }
+    
+    return generate_with_schema(prompt, schema)
+
+
+def _create_questions_from_gemini(script_id, gemini_result):
+    """
+    Create Question objects from Gemini response.
+    
+    Args:
+        script_id: ID of the script to link questions to
+        gemini_result: Parsed Gemini response with sections
+        
+    Returns:
+        List of Question objects
+    """
+    from models.script import Question
+    
+    questions = []
+    order_index = 0
+    
+    sections = gemini_result.get('sections', {})
+    section_order = ['intro', 'warmup', 'main', 'closing']
+    
+    for section in section_order:
+        section_questions = sections.get(section, [])
+        
+        # Handle case where section might not be a list
+        if not isinstance(section_questions, list):
+            section_questions = [section_questions] if section_questions else []
+        
+        for text in section_questions:
+            if text and isinstance(text, str) and text.strip():
+                questions.append(Question(
+                    script_id=script_id,
+                    section=section,
+                    order_index=order_index,
+                    text=text.strip(),
+                    is_asked=False
+                ))
+                order_index += 1
+    
+    # Ensure we have at least some questions
+    if len(questions) < 5:
+        raise ValueError(f"Gemini generated too few questions ({len(questions)}). Expected at least 5.")
+    
+    return questions
+
+
 
 
 def _generate_dummy_questions(script_id, research_goal, target_users):

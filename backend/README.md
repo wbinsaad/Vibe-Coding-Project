@@ -38,7 +38,9 @@ cp .env.example .env
 
 Edit `.env` with your configuration:
 - `SECRET_KEY`: Change to a secure random string in production
-- `OPENAI_API_KEY`: Add your OpenAI API key for AI features
+- `GEMINI_API_KEY`: **Required** - Your Gemini API key for AI features (get one at https://aistudio.google.com/app/apikey)
+- `GEMINI_MODEL`: Optional - Model to use (default: `gemma-3-1b-it`)
+- `ALLOW_DUMMY_FALLBACK`: Optional - Set to `true` to fall back to dummy generation if Gemini fails
 
 ### 5. Initialize Database
 
@@ -76,12 +78,26 @@ The API will be available at `http://localhost:5000`
 
 ## API Testing
 
-### Generate Interview Script
+### Generate Interview Script (Gemini AI)
 
-Create a new interview script with generated questions:
+Create a new interview script with AI-generated questions:
+
+> **Note**: This endpoint now uses Gemini AI to generate professional, neutral, non-leading interview questions tailored to your research goal and target users.
 
 ```bash
 curl -X POST http://localhost:5000/api/scripts/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "research_goal": "Understand user pain points with mobile banking",
+    "target_users": "Mobile banking app users aged 25-45",
+    "duration_minutes": 30,
+    "interview_type": "semi-structured"
+  }'
+```
+
+**With debug mode** (includes raw Gemini response):
+```bash
+curl -X POST "http://localhost:5000/api/scripts/generate?debug=true" \
   -H "Content-Type: application/json" \
   -d '{
     "research_goal": "Understand user pain points with mobile banking",
