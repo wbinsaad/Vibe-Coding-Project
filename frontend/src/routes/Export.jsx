@@ -3,11 +3,16 @@ import { Link, useParams } from 'react-router-dom'
 import { getScript, exportScript } from '../services/api'
 import { useToast } from '../components/Toast'
 import { useScript } from '../context/ScriptContext'
+import { usePageTitle, formatScriptTitle } from '../hooks/usePageTitle'
 
 export default function Export() {
     const { scriptId } = useParams()
     const toast = useToast()
-    const { setCurrentScript } = useScript()
+    const { setCurrentScript, currentScriptTitle } = useScript()
+
+    // Set page title dynamically
+    usePageTitle(formatScriptTitle('Export', scriptId, currentScriptTitle))
+
 
     // State
     const [script, setScript] = useState(null)

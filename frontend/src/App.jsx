@@ -7,8 +7,12 @@ import LiveMode from './routes/LiveMode'
 import Export from './routes/Export'
 import { Button } from './components/ui/Button'
 import { Card } from './components/ui/Card'
+import { usePageTitle } from './hooks/usePageTitle'
 
 function Home() {
+    // Set page title
+    usePageTitle()
+
     const features = [
         {
             title: 'Generate Scripts',

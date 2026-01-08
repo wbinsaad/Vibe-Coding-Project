@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { generateScript } from '../services/api'
 import { useToast } from '../components/Toast'
 import { useScript } from '../context/ScriptContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -12,6 +13,10 @@ export default function Create() {
     const navigate = useNavigate()
     const toast = useToast()
     const { setCurrentScript } = useScript()
+
+    // Set page title
+    usePageTitle('Create Script')
+
 
     // Form state
     const [formData, setFormData] = useState({

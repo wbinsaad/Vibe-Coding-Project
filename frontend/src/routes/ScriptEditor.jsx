@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks, clearFlags } from '../services/api'
 import { useToast } from '../components/Toast'
 import { useScript } from '../context/ScriptContext'
+import { usePageTitle, formatScriptTitle } from '../hooks/usePageTitle'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -10,7 +11,11 @@ import { Badge } from '../components/ui/Badge'
 export default function ScriptEditor() {
     const { scriptId } = useParams()
     const toast = useToast()
-    const { setCurrentScript } = useScript()
+    const { setCurrentScript, currentScriptTitle } = useScript()
+
+    // Set page title dynamically
+    usePageTitle(formatScriptTitle('Script Editor', scriptId, currentScriptTitle))
+
 
     // State
     const [script, setScript] = useState(null)
