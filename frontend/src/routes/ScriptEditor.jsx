@@ -111,17 +111,26 @@ export default function ScriptEditor() {
         setEditError('')
 
         try {
-            // Call API
+            // Call API to update question text
             const result = await updateQuestion(questionId, {
                 text: editText.trim()
             })
 
-            // Update local state with updated question
+            // Clear flags for this question via API
+            await clearFlags(questionId)
+
+            // Update local state - update question text and remove flags
             setQuestions(prevQuestions =>
                 prevQuestions.map(q =>
-                    q.id === questionId ? { ...q, ...result.question } : q
+                    q.id === questionId ? { ...q, ...result.question, flags: [] } : q
                 )
             )
+
+            // Recalculate flag counts
+            const updatedQuestions = questions.map(q =>
+                q.id === questionId ? { ...q, flags: [] } : q
+            )
+            calculateFlagCounts(updatedQuestions)
 
             // Exit edit mode
             setEditingQuestionId(null)
