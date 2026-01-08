@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { generateScript } from '../services/api'
+import { useToast } from '../components/Toast'
 
 export default function Create() {
     const navigate = useNavigate()
+    const toast = useToast()
 
     // Form state
     const [formData, setFormData] = useState({
@@ -79,9 +81,12 @@ export default function Create() {
             })
 
             // Navigate to script editor on success
+            toast.success('Script generated successfully!')
             navigate(`/script/${result.script_id}`)
         } catch (error) {
-            setApiError(error.message || 'An error occurred while generating the script')
+            const errorMsg = error.message || 'An error occurred while generating the script'
+            setApiError(errorMsg)
+            toast.error(errorMsg)
             setIsSubmitting(false)
         }
     }
@@ -233,8 +238,8 @@ export default function Create() {
                             type="submit"
                             disabled={!isFormValid || isSubmitting}
                             className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${isFormValid && !isSubmitting
-                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 }`}
                         >
                             {isSubmitting ? (

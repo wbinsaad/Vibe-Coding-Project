@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getScript, getFollowups, addQuestionFromFollowup, saveNote } from '../services/api'
+import { useToast } from '../components/Toast'
 
 export default function LiveMode() {
     const { scriptId } = useParams()
+    const toast = useToast()
 
     // State
     const [script, setScript] = useState(null)
@@ -98,8 +100,12 @@ export default function LiveMode() {
 
             const data = await getFollowups(payload)
             setFollowups(data.followups || [])
+            if (data.followups && data.followups.length > 0) {
+                toast.success(`Generated ${data.followups.length} follow-up suggestion${data.followups.length !== 1 ? 's' : ''}`)
+            }
         } catch (err) {
             setFollowupError(err.message)
+            toast.error(`Follow-up generation failed: ${err.message}`)
         } finally {
             setLoadingFollowups(false)
         }
@@ -128,12 +134,14 @@ export default function LiveMode() {
 
             // Show success message
             setSuccessMessage('Added to script')
+            toast.success('Question added to script!')
             setTimeout(() => setSuccessMessage(null), 3000)
 
             // Clear followups
             setFollowups([])
         } catch (err) {
             setFollowupError(`Failed to add to script: ${err.message}`)
+            toast.error(`Failed to add to script: ${err.message}`)
         } finally {
             setAddingToScript(false)
         }

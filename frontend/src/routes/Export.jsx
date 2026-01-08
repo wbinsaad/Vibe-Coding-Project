@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getScript, exportScript } from '../services/api'
+import { useToast } from '../components/Toast'
 
 export default function Export() {
     const { scriptId } = useParams()
+    const toast = useToast()
 
     // State
     const [script, setScript] = useState(null)
@@ -72,8 +74,10 @@ export default function Export() {
                 window.URL.revokeObjectURL(url)
                 document.body.removeChild(a)
             }
+            toast.success(`Script exported as ${selectedFormat.toUpperCase()}`)
         } catch (err) {
             setExportError(err.message)
+            toast.error(`Export failed: ${err.message}`)
         } finally {
             setExporting(false)
         }
@@ -95,9 +99,11 @@ export default function Export() {
 
             await navigator.clipboard.writeText(textToCopy)
             setCopySuccess(true)
+            toast.success('Copied to clipboard!')
             setTimeout(() => setCopySuccess(false), 3000)
         } catch (err) {
             setExportError(err.message)
+            toast.error(`Copy failed: ${err.message}`)
         } finally {
             setExporting(false)
         }

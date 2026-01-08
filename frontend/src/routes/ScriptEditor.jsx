@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks, clearFlags } from '../services/api'
+import { useToast } from '../components/Toast'
 
 export default function ScriptEditor() {
     const { scriptId } = useParams()
+    const toast = useToast()
 
     // State
     const [script, setScript] = useState(null)
@@ -78,8 +80,16 @@ export default function ScriptEditor() {
             setQuestions(data.questions)
             calculateFlagCounts(data.questions)
 
+            // Show success toast with flag count
+            const totalFlags = data.questions.reduce((sum, q) => sum + (q.flags?.length || 0), 0)
+            if (totalFlags > 0) {
+                toast.info(`Checks complete: ${totalFlags} issue${totalFlags !== 1 ? 's' : ''} found`)
+            } else {
+                toast.success('Checks complete: No issues found!')
+            }
+
         } catch (err) {
-            alert(`Failed to run checks: ${err.message}`)
+            toast.error(`Failed to run checks: ${err.message}`)
         } finally {
             setRunningChecks(false)
         }
