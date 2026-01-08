@@ -48,6 +48,24 @@ export async function getScript(scriptId) {
 }
 
 /**
+ * Get list of all scripts (metadata only)
+ * @param {number} [limit=20] - Maximum number of scripts to return
+ * @returns {Promise<Object>} List of scripts
+ */
+export async function getScriptsList(limit = 20) {
+    const response = await fetch(`${API_BASE_URL}/api/scripts?limit=${limit}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch scripts list');
+    }
+
+    return data;
+}
+
+
+/**
  * Update a question's text
  * @param {number|string} questionId - Question ID
  * @param {Object} payload - Update payload

@@ -447,7 +447,50 @@ def _generate_dummy_questions(script_id, research_goal, target_users):
     return questions
 
 
+@app.route('/api/scripts', methods=['GET'])
+def list_scripts():
+    """
+    List all scripts ordered by most recent first
+    
+    GET /api/scripts
+    
+    Query params:
+        ?limit=<number> - Maximum number of scripts to return (default: 20, max: 100)
+    
+    Returns:
+        200: List of scripts (metadata only, no questions)
+    """
+    from models.script import Script
+    
+    # Get limit from query params
+    try:
+        limit = int(request.args.get('limit', 20))
+        limit = max(1, min(100, limit))  # Clamp between 1 and 100
+    except (ValueError, TypeError):
+        limit = 20
+    
+    # Query scripts ordered by created_at descending
+    scripts = Script.query.order_by(Script.created_at.desc()).limit(limit).all()
+    
+    # Build response with metadata only
+    scripts_data = []
+    for script in scripts:
+        scripts_data.append({
+            'id': script.id,
+            'title': script.title,
+            'created_at': script.created_at.isoformat() if script.created_at else None,
+            'duration_minutes': script.duration_minutes,
+            'interview_type': script.interview_type
+        })
+    
+    return jsonify({
+        'status': 'success',
+        'scripts': scripts_data
+    }), 200
+
+
 @app.route('/api/scripts/<int:script_id>', methods=['GET'])
+
 def get_script(script_id):
     """
     Retrieve a script by ID with all questions, flags, and notes

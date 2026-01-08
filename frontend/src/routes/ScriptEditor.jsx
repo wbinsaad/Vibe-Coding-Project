@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getScript, updateQuestion, createQuestion, deleteQuestion, reorderQuestions, runChecks, clearFlags } from '../services/api'
 import { useToast } from '../components/Toast'
+import { useScript } from '../context/ScriptContext'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -9,6 +10,7 @@ import { Badge } from '../components/ui/Badge'
 export default function ScriptEditor() {
     const { scriptId } = useParams()
     const toast = useToast()
+    const { setCurrentScript } = useScript()
 
     // State
     const [script, setScript] = useState(null)
@@ -44,6 +46,9 @@ export default function ScriptEditor() {
                 setScript(data.script)
                 setQuestions(data.questions)
 
+                // Update current script ID and title for navigation
+                setCurrentScript(scriptId, data.script?.title)
+
                 // Calculate flag counts
                 calculateFlagCounts(data.questions)
             } catch (err) {
@@ -55,6 +60,8 @@ export default function ScriptEditor() {
 
         fetchScript()
     }, [scriptId])
+
+
 
     // Calculate flag counts from questions
     const calculateFlagCounts = (questionsList) => {

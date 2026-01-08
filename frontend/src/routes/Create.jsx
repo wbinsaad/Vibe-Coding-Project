@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { generateScript } from '../services/api'
 import { useToast } from '../components/Toast'
+import { useScript } from '../context/ScriptContext'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -10,6 +11,7 @@ import { Textarea } from '../components/ui/Textarea'
 export default function Create() {
     const navigate = useNavigate()
     const toast = useToast()
+    const { setCurrentScript } = useScript()
 
     // Form state
     const [formData, setFormData] = useState({
@@ -84,6 +86,9 @@ export default function Create() {
                 duration_minutes: parseInt(formData.duration_minutes)
             })
 
+            // Set current script ID and title for navigation
+            setCurrentScript(result.script_id, result.script?.title)
+
             // Navigate to script editor on success
             toast.success('Script generated successfully!')
             navigate(`/script/${result.script_id}`)
@@ -94,6 +99,8 @@ export default function Create() {
             setIsSubmitting(false)
         }
     }
+
+
 
     // Check if form is valid for submit button
     const isFormValid = formData.research_goal.trim() &&

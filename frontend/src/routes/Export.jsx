@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getScript, exportScript } from '../services/api'
 import { useToast } from '../components/Toast'
+import { useScript } from '../context/ScriptContext'
 
 export default function Export() {
     const { scriptId } = useParams()
     const toast = useToast()
+    const { setCurrentScript } = useScript()
 
     // State
     const [script, setScript] = useState(null)
@@ -27,12 +29,16 @@ export default function Export() {
             setLoading(true)
             const data = await getScript(scriptId)
             setScript(data)
+            // Update current script ID and title for navigation
+            setCurrentScript(scriptId, data.script?.title)
         } catch (err) {
             setError(err.message)
         } finally {
             setLoading(false)
         }
     }
+
+
 
     const handleDownload = async () => {
         setExporting(true)
