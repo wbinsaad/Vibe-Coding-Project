@@ -15,7 +15,7 @@
 - SQLite
 
 ### APIs
-- OpenAI API (for AI script generation and follow-up suggestions)
+- Gemini AI API (for AI script generation and follow-up suggestions)
 
 ## Project Structure
 
