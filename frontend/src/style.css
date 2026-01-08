@@ -1,8 +1,20 @@
+/* ============================================
+   Main Stylesheet
+   Import order: Theme → Tailwind → Custom
+   ============================================ */
+
+/* Import theme design system FIRST (before @tailwind) */
+@import './styles/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Toast animation */
+/* ============================================
+   Custom Animations
+   ============================================ */
+
+/* Toast slide-in animation */
 @keyframes slide-in {
     from {
         transform: translateX(100%);
@@ -17,4 +29,83 @@
 
 .animate-slide-in {
     animation: slide-in 0.3s ease-out forwards;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out forwards;
+}
+
+/* Pulse subtle animation */
+@keyframes pulse-subtle {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Global Overrides
+   ============================================ */
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Remove default focus styles, we use our own */
+*:focus {
+    outline: none;
+}
+
+/* Better default for buttons */
+button {
+    font-family: inherit;
+}
+
+/* Selection styling */
+::selection {
+    background-color: rgb(var(--primary) / 0.15);
+    color: rgb(var(--primary));
+}
+
+/* Scrollbar styling (webkit) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgb(var(--bg-subtle));
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgb(var(--border-hover));
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--muted));
 }

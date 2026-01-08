@@ -1,0 +1,276 @@
+/* ============================================
+   Theme Design System
+   Modern SaaS aesthetic with refined colors
+   ============================================ */
+
+:root {
+    /* Background colors */
+    --bg: 250 250 249;
+    /* stone-50 */
+    --bg-subtle: 245 245 244;
+    /* stone-100 */
+    --card: 255 255 255;
+    /* white */
+    --card-hover: 250 250 249;
+    /* stone-50 */
+
+    /* Text colors */
+    --text: 28 25 23;
+    /* stone-900 */
+    --text-secondary: 87 83 78;
+    /* stone-600 */
+    --muted: 120 113 108;
+    /* stone-500 */
+    --muted-foreground: 168 162 158;
+    /* stone-400 */
+
+    /* Border colors */
+    --border: 231 229 228;
+    /* stone-200 */
+    --border-hover: 214 211 209;
+    /* stone-300 */
+
+    /* Primary (Indigo) */
+    --primary: 79 70 229;
+    /* indigo-600 */
+    --primary-hover: 67 56 202;
+    /* indigo-700 */
+    --primary-light: 224 231 255;
+    /* indigo-100 */
+    --primary-foreground: 255 255 255;
+    /* white */
+
+    /* Accent (Violet for gradients) */
+    --accent: 124 58 237;
+    /* violet-600 */
+    --accent-light: 237 233 254;
+    /* violet-100 */
+
+    /* Semantic colors */
+    --success: 22 163 74;
+    /* green-600 */
+    --success-light: 220 252 231;
+    /* green-100 */
+    --success-foreground: 255 255 255;
+
+    --warning: 202 138 4;
+    /* yellow-600 */
+    --warning-light: 254 249 195;
+    /* yellow-100 */
+    --warning-foreground: 255 255 255;
+
+    --danger: 220 38 38;
+    /* red-600 */
+    --danger-light: 254 226 226;
+    /* red-100 */
+    --danger-foreground: 255 255 255;
+
+    --info: 37 99 235;
+    /* blue-600 */
+    --info-light: 219 234 254;
+    /* blue-100 */
+    --info-foreground: 255 255 255;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* Spacing scale */
+    --radius-sm: 0.375rem;
+    --radius: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+}
+
+/* ============================================
+   Tailwind Layer: Base
+   ============================================ */
+@layer base {
+    * {
+        border-color: rgb(var(--border));
+    }
+
+    body {
+        background: linear-gradient(135deg,
+                rgb(var(--bg)) 0%,
+                rgb(248 250 252) 50%,
+                rgb(241 245 249) 100%);
+        background-attachment: fixed;
+        color: rgb(var(--text));
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Improved heading styles */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        color: rgb(var(--text));
+    }
+
+    h1 {
+        font-size: 2.25rem;
+        line-height: 2.5rem;
+    }
+
+    h2 {
+        font-size: 1.875rem;
+        line-height: 2.25rem;
+    }
+
+    h3 {
+        font-size: 1.5rem;
+        line-height: 2rem;
+    }
+
+    h4 {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+    }
+
+    /* Paragraph styling */
+    p {
+        color: rgb(var(--text-secondary));
+        line-height: 1.625;
+    }
+
+    /* Focus ring utility */
+    .focus-ring {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
+
+    .focus-ring:focus-visible {
+        outline: 2px solid rgb(var(--primary));
+        outline-offset: 2px;
+    }
+}
+
+/* ============================================
+   Tailwind Layer: Components
+   ============================================ */
+@layer components {
+
+    /* Card base styles */
+    .card {
+        background-color: rgb(var(--card));
+        border-radius: var(--radius-xl);
+        border: 1px solid rgb(var(--border));
+        box-shadow: var(--shadow-sm);
+    }
+
+    .card-hover {
+        transition: all 0.2s ease;
+    }
+
+    .card-hover:hover {
+        box-shadow: var(--shadow-md);
+        border-color: rgb(var(--border-hover));
+    }
+
+    /* Input base styles */
+    .input-base {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border-radius: var(--radius-md);
+        border: 1px solid rgb(var(--border));
+        background-color: rgb(var(--card));
+        color: rgb(var(--text));
+        font-size: 0.9375rem;
+        transition: all 0.15s ease;
+    }
+
+    .input-base::placeholder {
+        color: rgb(var(--muted-foreground));
+    }
+
+    .input-base:hover {
+        border-color: rgb(var(--border-hover));
+    }
+
+    .input-base:focus {
+        outline: none;
+        border-color: rgb(var(--primary));
+        box-shadow: 0 0 0 3px rgb(var(--primary) / 0.1);
+    }
+
+    .input-base:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background-color: rgb(var(--bg-subtle));
+    }
+
+    /* Button base styles */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.15s ease;
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn:focus-visible {
+        outline: 2px solid rgb(var(--primary));
+        outline-offset: 2px;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Badge base */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border-radius: 9999px;
+    }
+}
+
+/* ============================================
+   Tailwind Layer: Utilities
+   ============================================ */
+@layer utilities {
+
+    /* Gradient background for hero sections */
+    .bg-gradient-subtle {
+        background: linear-gradient(135deg,
+                rgb(var(--primary-light)) 0%,
+                rgb(var(--accent-light)) 100%);
+    }
+
+    /* Text gradient */
+    .text-gradient {
+        background: linear-gradient(135deg,
+                rgb(var(--primary)) 0%,
+                rgb(var(--accent)) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* Glassmorphism effect */
+    .glass {
+        background: rgb(var(--card) / 0.8);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+}
