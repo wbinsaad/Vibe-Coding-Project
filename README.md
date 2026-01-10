@@ -49,6 +49,7 @@ python -m venv venv
 venv\Scripts\activate  # On Windows
 # source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
+init_db.py # Init the db only for the first time to create the database
 python app.py
 ```
 
